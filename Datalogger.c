@@ -45,35 +45,32 @@ extern uint8_t ui8Byte_count[];
  * @param   initializer
  * @returns Error indicator
  ***********************************************************************************/
-bool RegisterLog (tDATALOG_INITS sDatalogInits)
+tDATALOG_ERROR RegisterLog (uint8_t ui8LogNum, uint16_t ui16FreqDiv, uint32_t ui32RecLen, uint8_t *pui8Variable, uint8_t ui8ByteCount)
 {
-    tDATALOG_CHANNEL    *pChannel = &sDatalogger.sDatalogControl.sDatalogChannels[sDatalogInits.ui8LogNum - 1];
-    tDATALOG_CHANNEL_MEMORY   *pMemChannel = &sDatalogger.sMemoryHeader.sDatalogChannelsMemory[sDatalogInits.ui8LogNum - 1];
-    uint16_t    ui16VarIdx;
+    tDATALOG_CHANNEL        *pChannel; 
+    tDATALOG_CHANNEL_MEMORY *pMemChannel;
+
+    if (ui8LogNum > MAX_NUM_LOGS)
+        return eDATALOG_ERROR_NUMBER_OF_LOGS_EXCEEDED;
+    
+    pChannel = &sDatalogger.sDatalogControl.sDatalogChannels[ui8LogNum - 1];
+    pMemChannel = &sDatalogger.sMemoryHeader.sDatalogChannelsMemory[ui8LogNum - 1];
 
     if (sDatalogger.eDatalogState != eDLOGSTATE_INITIALIZED ||
         sDatalogger.eDatalogState != eDLOGSTATE_UNINITIALIZED)
-        return false;
-
-    if (sDatalogInits.ui8LogNum > MAX_NUM_LOGS - 1)
-        return false;
-
-    // Get the index of the variable
-    ui16VarIdx = ramVarGetIdx(sDatalogInits.ui16VarNr);
-
-    if (ui16VarIdx < 0)
-        return false;
+        return eDATALOG_ERROR_WRONG_STATE;
 
     // Initialize parameter variables
-    pChannel->ui16Index = pMemChannel->ui16Index = ui16VarIdx;
-    pChannel->ui16Divider = pMemChannel->ui16Divider = sDatalogInits.ui16Divider;
-    pChannel->ui32RecordLength = sDatalogInits.ui32RecordLength;
+    pChannel->pui8Variable = pMemChannel->pui8Variable  = pui8Variable;
+    pChannel->ui8ByteCount = pMemChannel->ui8ByteCount  = ui8ByteCount;
+    pChannel->ui16Divider = pMemChannel->ui16Divider    = ui16FreqDiv;
+    pChannel->ui32RecordLength                          = ui32RecLen;
 
 
     // New value is set -> Need to initialize the datalogger prior to next log run.
     sDatalogger.eDatalogState = eDLOGSTATE_UNINITIALIZED;
 
-    return true;
+    return eDATALOG_ERROR_NONE;
 }
 
 //===================================================================================
@@ -100,10 +97,11 @@ bool DatalogInitialize (tDATALOG_CONFIG sDatalogConfig)
     if (sDatalogger.eDatalogState != eDLOGSTATE_UNINITIALIZED)
         return false;
 
-    // If memory has been already allocated, free these memory portions
-    while (sDatalogger.sDatalogControl.sDataLogConfig.ui8ActiveLoggers > 0)
+    // Free former memory allocation
+    if(sDatalogger.sDatalogControl.sDataLogConfig.eOpMode == eOPMODE_RECMODEMEM)
     {
-        if(sDatalogger.sDatalogControl.sDataLogConfig.eOpMode != eOPMODE_LIVEMODE)
+    // If memory has been already allocated, free these memory portions
+        while (sDatalogger.sDatalogControl.sDataLogConfig.ui8ActiveLoggers > 0)
         {
             if (sDatalogger.sDatalogControl.sDataLogConfig.ui8ActiveLoggers & (1 << i))
             {
@@ -132,9 +130,9 @@ bool DatalogInitialize (tDATALOG_CONFIG sDatalogConfig)
             if (ui8LogCount > 0)
             {
                 sDatalogger.sMemoryHeader.sDatalogChannelsMemory[i].ui32MemoryOffset = 
-                sDatalogger.sMemoryHeader.sDatalogChannelsMemory[ui8LogIdx[ui8LogCount - 1]].ui32MemoryOffset +
-                sDatalogger.sDatalogControl.sDatalogChannels[ui8LogIdx[ui8LogCount - 1]].ui32RecordLength *
-                ui8Byte_count[ramVars[sDatalogger.sDatalogControl.sDatalogChannels[ui8LogIdx[ui8LogCount - 1]].ui16Index].ui8DataType];
+                    sDatalogger.sMemoryHeader.sDatalogChannelsMemory[ui8LogIdx[ui8LogCount - 1]].ui32MemoryOffset +
+                    sDatalogger.sDatalogControl.sDatalogChannels[ui8LogIdx[ui8LogCount - 1]].ui32RecordLength *
+                    sDatalogger.sDatalogControl.sDatalogChannels[ui8LogIdx[ui8LogCount - 1]].ui8ByteCount;
             }
             else
             {
@@ -638,7 +636,7 @@ void DataloggerStatemachine (void)
         break;
 
 
-    case eDLOGSTATE_INITIALIZE_EXTERNAL_MEMORY:
+    case eDLOGSTATE_FORMAT_MEMORY:
 
         // Wait for the memory write before changing the state angain
         // TODO: Functions not implemented yet
@@ -651,7 +649,7 @@ void DataloggerStatemachine (void)
         // Wait for the datalogger to be started (Done by API)
         break;
 
-    case eDLOGSTATE_RECMODEMEM_RUNNING:
+    case eDLOGSTATE_RUNNING:
 
 /*         // Arbitration Buffer schreiben. Dabei Ringbuffer handeln */
 /*         if(pMem_sched->ui8Retrieve_flags & (1 << pMem_sched->ui8Arbitration_count)) */
@@ -704,10 +702,10 @@ void DataloggerStatemachine (void)
 /*             pMem_sched->ui8Arbitration_count = 0; */
         break;
 
-    case eDLOGSTATE_RECMODERAM_RUNNING:
-        break;
+    // case eDLOGSTATE_RECMODERAM_RUNNING:
+    //     break;
 
-    case eDLOGSTATE_RECMODEMEM_FINISHING:
+    case eDLOGSTATE_ABORTING:
         /* // Pointer auf Loggerstruktur (Arbitration Count wurde beim Zustandswechsel auf 0 gesetzt!) */
         /* pInstance = &sDatalog.sDatalog_internal.sHeader.sDatalog_array[pMem_sched->ui8Arbitration_count]; */
 
@@ -737,11 +735,11 @@ void DataloggerStatemachine (void)
         /* } */
         break;
 
-    case eDLOGSTATE_RECMODERAM_FINISHING:
-        break;
+    // case eDLOGSTATE_RECMODERAM_FINISHING:
+    //     break;
 
-    // Live-Datenlogger
-    case eDLOGSTATE_LIVEMODE_RUNNING:
+    // // Live-Datenlogger
+    // case eDLOGSTATE_LIVEMODE_RUNNING:
 
 /*        // Wurde der Bulk-Transfer abgeschlossen, dann sind wir in Sync mit dem Host-Timer*/
 /*        if (sRoboard_interface.sData_in_endpoint.bTransfer_concluded)*/
@@ -857,7 +855,7 @@ static void DataloggerSetState()
                 // State transition resolver
                 switch(sDatalogger.eDatalogStatePending)
                 {
-                    case eDLOGSTATE_INITIALIZE_EXTERNAL_MEMORY:
+                    case eDLOGSTATE_FORMAT_MEMORY:
                         // Write the header into the memory
                         // TODO: Implement these functions
                         /*

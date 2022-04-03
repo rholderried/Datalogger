@@ -42,41 +42,27 @@ typedef enum
     eDLOGSTATE_ERROR = -1,
 
     // Internal Mode Datalog
-    eDLOGSTATE_UNINITIALIZED = 0,           /*!< New logs have been registered. Also POR value. */
-    eDLOGSTATE_INITIALIZE_EXTERNAL_MEMORY,  /*!< Writing Header into external memory */
-    eDLOGSTATE_INITIALIZED,                 /*!< Datalogger ready to start, not running */
+    eDLOGSTATE_UNINITIALIZED            = 0,   /*!< New logs have been registered. Also POR value. */
+    eDLOGSTATE_FORMAT_MEMORY,                  /*!< Writing Header into external memory */
+    eDLOGSTATE_INITIALIZED,                    /*!< Datalogger ready to start, not running */
 
-    eDLOGSTATE_RECMODERAM_RUNNING,
-    eDLOGSTATE_RECMODEMEM_RUNNING,
-    eDLOGSTATE_LIVEMODE_RUNNING,
-
-    eDLOGSTATE_RECMODERAM_FINISHING,
-    eDLOGSTATE_RECMODEMEM_FINISHING,
-    eDLOGSTATE_LIVEMODE_FINISHING,
-
-    eDLOGSTATE_RECMODERAM_ABORTING,
-    eDLOGSTATE_RECMODEMEM_ABORTING,
-    eDLOGSTATE_LIVEMODE_ABORTION,
-
-    // Memory Read-Out
-    eDLOGSTATE_MEMORY_READOUT_RAM,
-    eDLOGSTATE_MEMORY_READOUT_FINISHING
+    eDLOGSTATE_RUNNING,
+    eDLOGSTATE_ABORTING,
 }tDATALOG_STATE;
 
 typedef enum
 {
-    eOPMODE_NONE        = -1,
     eOPMODE_RECMODERAM  = 0,
     eOPMODE_RECMODEMEM  = 1,
     eOPMODE_LIVEMODE    = 2 
-}tROBLOG_OPMODES;
+}tDATALOG_OPMODES;
 
 typedef enum
 {
-    eDATALOG_ERROR_WRONG_STATE,
-    eDATALOG_ERROR_LOG_NUMBER_INVALID,
-    // Errors from other modules
-    eDATALOG_ERROR_VARIABLE_ACCESS,  // Varible Access module
+    eDATALOG_ERROR_NONE                     = 0,
+    eDATALOG_ERROR_WRONG_STATE              = 1,
+    eDATALOG_ERROR_LOG_NUMBER_INVALID       = 2,
+    eDATALOG_ERROR_NUMBER_OF_LOGS_EXCEEDED  = 3
 }tDATALOG_ERROR;
 
 /************************************************************************************
@@ -87,17 +73,18 @@ typedef struct
 {
     uint8_t             ui8ActiveLoggers;
     uint32_t            ui32TimeBase;
-    tROBLOG_OPMODES     eOpMode;
+    tDATALOG_OPMODES    eOpMode;
 }tDATALOG_CONFIG;
 
-#define tDATALOG_CONFIG_DEFAULTS {0, 0, eOPMODE_NONE}
+#define tDATALOG_CONFIG_DEFAULTS {0, 0, eOPMODE_RECMODERAM}
 
 typedef struct
 {
-    uint8_t     ui8LogNum;
-    uint16_t    ui16VarNr;
-    uint16_t    ui16Divider;
-    uint32_t    ui32RecordLength;
+    uint8_t     ui8LogNum;          /*!< Number of the log to fill.*/
+    uint16_t    ui16Divider;        /*!< Frequency divider for this log.*/
+    uint32_t    ui32RecordLength;   /*!< Maximum record length of this log.*/
+    uint8_t    *pui8Variable;       /*!< Memory address of the target variable.*/
+    uint8_t     ui8ByteCount;       /*!< Byte count of the variable.*/
 }tDATALOG_INITS;
 
 #define tDATALOG_INITS_DEFAULTS {0}
@@ -108,9 +95,10 @@ typedef struct
 typedef struct
 {
     // Channel config variables
-    uint16_t    ui16Index;              // Var index in the variable structure
     uint16_t    ui16Divider;            // Frequency divider
     uint32_t    ui32RecordLength;       // Record length of the channel
+    uint8_t    *pui8Variable;           /*!< Memory address of the target variable.*/
+    uint8_t     ui8ByteCount;           /*!< Byte count of the variable.*/
     // Channel parameter variables
     uint16_t    ui16RetrieveThreshIdx;  // Retrieve threshold index of this channel
     // Channel state variables
@@ -124,7 +112,7 @@ typedef struct
     /* uint16_t    ui16DebugMaxValIdx;     // Debug: Maximaler Buffer Index */
 }tDATALOG_CHANNEL;
 
-#define tDATALOG_CHANNEL_DEFAULTS {0, 0, 0, 0, 0, 0, 0, 0, 1, {NULL}}
+#define tDATALOG_CHANNEL_DEFAULTS {0, 0, NULL, 0, 0, 0, 0, 0, 0, 1, {NULL}}
 
 // Datalog control structure
 typedef struct
@@ -145,6 +133,8 @@ typedef struct
     uint16_t ui16Index;             // Variable struct index
     uint16_t ui16Divider;           // Timebase frequency divider
     uint32_t ui32MemoryOffset;      // Offset address of the channel
+    uint8_t *pui8Variable;           /*!< Memory address of the target variable.*/
+    uint8_t  ui8ByteCount;           /*!< Byte count of the variable.*/
 }tDATALOG_CHANNEL_MEMORY;
 
 #define tDATALOG_CHANNEL_MEMORY_DEFAULTS {0, 0, 0}
@@ -165,7 +155,7 @@ typedef struct
  ***********************************************************************************/
 typedef struct
 {
-    // Steuervariablen f�r den Scheduler des internen Datenloggers
+    // Control variables for the internal scheduler of the datalogger
     uint8_t     ui8ArbitrationBuffer[ARBITRATION_BUFFER_SIZE];
     uint8_t     ui8FillIdx;
     uint8_t     ui8RetrieveIdx;
@@ -231,7 +221,7 @@ typedef struct
  * Funktionsdeklarationen
  ***********************************************************************************/
 // API functions
-bool RegisterLog (tDATALOG_INITS sDatalogInits);
+tDATALOG_ERROR RegisterLog (uint8_t ui8LogNum, uint16_t ui16FreqDiv, uint32_t ui32RecLen, uint8_t *pui8Variable, uint8_t ui8ByteCount);
 bool DatalogInitialize (tDATALOG_CONFIG sDatalogConfig);
 bool DatalogStart (void);
 bool DatalogStop (void);
