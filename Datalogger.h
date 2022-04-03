@@ -23,6 +23,7 @@
 #define MEMORY_HEADER_SIZE()       (sizeof(tDATALOG_MEMORY_HEADER))
 #define MAX_NUM_LOGS                8
 #define ARBITRATION_BUFFER_SIZE     20
+#define LOG_MEMORY_SIZE             512
 
 // Live-Datenlogger
 #define MIN_SAMPLE_TIME_MS          2
@@ -54,7 +55,7 @@ typedef enum
 {
     eOPMODE_RECMODERAM  = 0,
     eOPMODE_RECMODEMEM  = 1,
-    eOPMODE_LIVEMODE    = 2 
+    eOPMODE_LIVE        = 2 
 }tDATALOG_OPMODES;
 
 typedef enum
@@ -96,6 +97,7 @@ typedef struct
 {
     // Channel config variables
     uint16_t    ui16Divider;            // Frequency divider
+    uint32_t    ui32MemoryOffset;      // Offset address of the channel
     uint32_t    ui32RecordLength;       // Record length of the channel
     uint8_t    *pui8Variable;           /*!< Memory address of the target variable.*/
     uint8_t     ui8ByteCount;           /*!< Byte count of the variable.*/
@@ -108,21 +110,22 @@ typedef struct
     uint32_t    ui32CurrentCount;       // Current record count
     uint16_t    ui16DivideCount;        // Count for the frequency divider
     // RAM buffer for this channel
-    void*       pvRamBuf[2]; 
-    /* uint16_t    ui16DebugMaxValIdx;     // Debug: Maximaler Buffer Index */
+    uint8_t*    ui8RamBuf[2]; 
 }tDATALOG_CHANNEL;
 
-#define tDATALOG_CHANNEL_DEFAULTS {0, 0, NULL, 0, 0, 0, 0, 0, 0, 1, {NULL}}
+#define tDATALOG_CHANNEL_DEFAULTS {0, 0, 0, NULL, 0, 0, 0, 0, 0, 0, 1, {NULL}}
 
 // Datalog control structure
 typedef struct
 {
-    tDATALOG_CONFIG         sDataLogConfig;
-    uint8_t                 ui8ChannelsRunning;
-    tDATALOG_CHANNEL        sDatalogChannels[MAX_NUM_LOGS];
+    tDATALOG_CONFIG     sDataLogConfig;
+    uint8_t             ui8ChannelsRunning;
+    tDATALOG_CHANNEL    sDatalogChannels[MAX_NUM_LOGS];
+    uint8_t            *pui8Data;
+    uint32_t            ui32CurIdx;
 }tDATALOG_CONTROL;
 
-#define tDATALOG_CONTROL_DEFAULTS {tDATALOG_CONFIG_DEFAULTS, 0, {tDATALOG_CHANNEL_DEFAULTS}}
+#define tDATALOG_CONTROL_DEFAULTS {tDATALOG_CONFIG_DEFAULTS, 0, {tDATALOG_CHANNEL_DEFAULTS}, NULL, 0}
 
 /************************************************************************************
  * Record memory mode header module
@@ -130,7 +133,6 @@ typedef struct
 // Log description header (Leading information for each log)
 typedef struct
 {
-    uint16_t ui16Index;             // Variable struct index
     uint16_t ui16Divider;           // Timebase frequency divider
     uint32_t ui32MemoryOffset;      // Offset address of the channel
     uint8_t *pui8Variable;           /*!< Memory address of the target variable.*/
@@ -222,8 +224,8 @@ typedef struct
  ***********************************************************************************/
 // API functions
 tDATALOG_ERROR RegisterLog (uint8_t ui8LogNum, uint16_t ui16FreqDiv, uint32_t ui32RecLen, uint8_t *pui8Variable, uint8_t ui8ByteCount);
-bool DatalogInitialize (tDATALOG_CONFIG sDatalogConfig);
-bool DatalogStart (void);
+tDATALOG_ERROR DatalogInitialize (tDATALOG_CONFIG sDatalogConfig);
+tDATALOG_ERROR DatalogStart (void);
 bool DatalogStop (void);
 // Datalog service methods
 void DataloggerService (void);

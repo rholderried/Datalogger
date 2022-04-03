@@ -85,39 +85,42 @@ tDATALOG_ERROR RegisterLog (uint8_t ui8LogNum, uint16_t ui16FreqDiv, uint32_t ui
  * @param   sDatalogConfig Desired configuration of the datalogger.
  * @returns Error indicator
  ***********************************************************************************/
-bool DatalogInitialize (tDATALOG_CONFIG sDatalogConfig)
+tDATALOG_ERROR DatalogInitialize (tDATALOG_CONFIG sDatalogConfig)
 {
-    uint8_t     i = 0;
+    //uint8_t     i = 0;
     uint8_t     ui8LogCount = 0;
     uint8_t     ui8LogIdx[MAX_NUM_LOGS] = {0};
     uint16_t    ui16TempSize;
+    uint32_t   ui32CurrentByteSize = 0;
     tDATALOG_CHANNEL *pChannel;
 
     // Get out of this function if the state is not correct
     if (sDatalogger.eDatalogState != eDLOGSTATE_UNINITIALIZED)
-        return false;
+        return eDATALOG_ERROR_WRONG_STATE;
 
-    // Free former memory allocation
-    if(sDatalogger.sDatalogControl.sDataLogConfig.eOpMode == eOPMODE_RECMODEMEM)
+
+    /********************************************************************************
+     * Free former memory allocation
+     *******************************************************************************/
+    if(sDatalogger.sDatalogControl.sDataLogConfig.eOpMode == eOPMODE_RECMODERAM)
     {
+        uint8_t i = 0;
     // If memory has been already allocated, free these memory portions
         while (sDatalogger.sDatalogControl.sDataLogConfig.ui8ActiveLoggers > 0)
         {
             if (sDatalogger.sDatalogControl.sDataLogConfig.ui8ActiveLoggers & (1 << i))
             {
-                free(sDatalogger.sDatalogControl.sDatalogChannels[i].pvRamBuf[0]);
-
-                if (sDatalogger.sDatalogControl.sDataLogConfig.eOpMode == eOPMODE_RECMODEMEM)
-                    free(sDatalogger.sDatalogControl.sDatalogChannels[i].pvRamBuf[1]);
+                free(sDatalogger.sDatalogControl.sDatalogChannels[i].ui8RamBuf[0]);
+                free(sDatalogger.sDatalogControl.sDatalogChannels[i].ui8RamBuf[1]);
 
                 sDatalogger.sDatalogControl.sDataLogConfig.ui8ActiveLoggers &= ~(1 << i);
             }
-        }
         i++;
+        }
     }
 
     // Preinitialize Datalog structure
-    for(i = 0; i < MAX_NUM_LOGS; i++)
+    for(uint8_t i = 0; i < MAX_NUM_LOGS; i++)
     {
         if (!(sDatalogConfig.ui8ActiveLoggers & (1 << i)))
             continue;
@@ -125,20 +128,32 @@ bool DatalogInitialize (tDATALOG_CONFIG sDatalogConfig)
         ui8LogIdx[ui8LogCount] = i;
 
         // Determine the offset of the current channel in external memory
-        if (sDatalogConfig.eOpMode == eOPMODE_RECMODEMEM)
+        if (sDatalogConfig.eOpMode == eOPMODE_RECMODEMEM || sDatalogConfig.eOpMode == eOPMODE_RECMODERAM)
         {
             if (ui8LogCount > 0)
             {
                 sDatalogger.sMemoryHeader.sDatalogChannelsMemory[i].ui32MemoryOffset = 
-                    sDatalogger.sMemoryHeader.sDatalogChannelsMemory[ui8LogIdx[ui8LogCount - 1]].ui32MemoryOffset +
+                sDatalogger.sDatalogControl.sDatalogChannels[i].ui32MemoryOffset = 
+                    sDatalogger.sDatalogControl.sDatalogChannels[ui8LogIdx[ui8LogCount - 1]].ui32MemoryOffset +
                     sDatalogger.sDatalogControl.sDatalogChannels[ui8LogIdx[ui8LogCount - 1]].ui32RecordLength *
                     sDatalogger.sDatalogControl.sDatalogChannels[ui8LogIdx[ui8LogCount - 1]].ui8ByteCount;
             }
             else
             {
-                sDatalogger.sMemoryHeader.sDatalogChannelsMemory[i].ui32MemoryOffset = 
-                sDatalogger.sDatalogControl.sDatalogChannels[ui8LogIdx[ui8LogCount]].ui32CurMemPos = MEMORY_HEADER_SIZE();
+                if (sDatalogConfig.eOpMode == eOPMODE_RECMODEMEM )
+                {
+                    sDatalogger.sMemoryHeader.sDatalogChannelsMemory[i].ui32MemoryOffset = 
+                    sDatalogger.sDatalogControl.sDatalogChannels[i].ui32CurMemPos = MEMORY_HEADER_SIZE();
+                }
+                else
+                {
+                    sDatalogger.sDatalogControl.sDatalogChannels[i].ui32MemoryOffset = 
+                    sDatalogger.sDatalogControl.sDatalogChannels[i].ui32CurMemPos = 0;
+                }
             }
+
+            ui32CurrentByteSize +=  sDatalogger.sDatalogControl.sDatalogChannels[i].ui32RecordLength *
+                                    sDatalogger.sDatalogControl.sDatalogChannels[i].ui8ByteCount;
         }
         ui8LogCount++;
     }
@@ -147,57 +162,38 @@ bool DatalogInitialize (tDATALOG_CONFIG sDatalogConfig)
     /********************************************************************************
      * RAM initialization routines
      *******************************************************************************/
-    if (sDatalogConfig.eOpMode != eOPMODE_LIVEMODE)
+    if (sDatalogConfig.eOpMode == eOPMODE_RECMODEMEM)
     {
         ui16TempSize = LOG_MEMORY_SIZE / (ui8LogCount << 1);
 
-        for(i = 0; i < ui8LogCount; i++)
+        for(uint8_t i = 0; i < ui8LogCount; i++)
         {
             pChannel = &sDatalogger.sDatalogControl.sDatalogChannels[ui8LogIdx[i]];
 
-            if (sDatalogConfig.eOpMode == eOPMODE_RECMODEMEM)
-            {
-                pChannel->pvRamBuf[0] = malloc((size_t)(ui16TempSize));
-                pChannel->pvRamBuf[1] = malloc((size_t)(ui16TempSize));
+            pChannel->ui8RamBuf[0] = malloc((size_t)(ui16TempSize));
+            pChannel->ui8RamBuf[1] = malloc((size_t)(ui16TempSize));
 
-                pChannel->ui16RetrieveThreshIdx = ui16TempSize / 
-                        ui8Byte_count[ramVars[pChannel->ui16Index].ui8DataType] - 1;
-            }
-            // Operation mode == eOPMODE_RECMODERAM
-            else
-            {
-                pChannel->pvRamBuf[0] = 
-                    malloc((size_t)(pChannel->ui32RecordLength * 
-                                ui8Byte_count[ramVars[pChannel->ui16Index].ui8DataType]));
-            }
-
+            // Retrieve data whenn the index exceeds half of the memory size
+            pChannel->ui16RetrieveThreshIdx = ui16TempSize >> 2;
+            
         }
-    }
-    
-    //TODO: LIVEMODE Ringbuffer initialization
-
-    /********************************************************************************
-     * Memory Record mode related variables
-     *******************************************************************************/
-    if (sDatalogConfig.eOpMode == eOPMODE_RECMODEMEM)
-    {
         // Note: pChannel still pointing on the last active memory channel
         sDatalogger.sMemoryHeader.ui32LastAddress = 
             sDatalogger.sMemoryHeader.sDatalogChannelsMemory[ui8LogIdx[ui8LogCount - 1]].ui32MemoryOffset + 
             pChannel->ui32RecordLength - 1;
 
         sDatalogger.sMemoryHeader.ui32TimeBase = sDatalogConfig.ui32TimeBase;
-
     }
-
+    
+    //TODO: LIVEMODE Ringbuffer initialization
     sDatalogger.sDatalogControl.sDataLogConfig = sDatalogConfig;
 
     if (sDatalogConfig.eOpMode != eOPMODE_RECMODEMEM)
         sDatalogger.eDatalogStatePending = eDLOGSTATE_INITIALIZED;
     else 
-        sDatalogger.eDatalogStatePending = eDLOGSTATE_INITIALIZE_EXTERNAL_MEMORY;
+        sDatalogger.eDatalogStatePending = eDLOGSTATE_FORMAT_MEMORY;
 
-    return true;
+    return eDATALOG_ERROR_NONE;
 }
 
 //===================================================================================
@@ -246,15 +242,15 @@ bool DatalogInitialize (tDATALOG_CONFIG sDatalogConfig)
  *
  * @returns Error indicator
  ***********************************************************************************/
-bool DatalogStart (void)
+tDATALOG_ERROR DatalogStart (void)
 {
     uint8_t i = 0;
     tDATALOG_CHANNEL* pChannel = sDatalogger.sDatalogControl.sDatalogChannels;
 
     if (sDatalogger.eDatalogState != eDLOGSTATE_INITIALIZED)
-        return false;
+        return eDATALOG_ERROR_WRONG_STATE;
 
-    // Alle Laufvariablen zur�cksetzen
+    // Resets all relevant variables
     while (i < MAX_NUM_LOGS)
     {
         if (!(sDatalogger.sDatalogControl.sDataLogConfig.ui8ActiveLoggers & (1 << i)))
@@ -265,8 +261,13 @@ bool DatalogStart (void)
         pChannel[i].ui16DivideCount = 1;
         pChannel[i].ui16ValIdx = 0;
         pChannel[i].ui32CurrentCount = 0;
-
-        if(sDatalogger.sDatalogControl.sDataLogConfig.eOpMode == eOPMODE_RECMODEMEM)
+        
+        if(sDatalogger.sDatalogControl.sDataLogConfig.eOpMode == eOPMODE_RECMODERAM)
+        {
+            pChannel[i].ui32CurMemPos = sDatalogger.sDatalogControl.sDatalogChannels[i].ui32MemoryOffset;
+            sDatalogger.sDatalogControl.ui32CurrentByteIdx = 0;
+        }
+        else if(sDatalogger.sDatalogControl.sDataLogConfig.eOpMode == eOPMODE_RECMODEMEM)
         {
             pChannel[i].ui32CurMemPos = sDatalogger.sMemoryHeader.sDatalogChannelsMemory[i].ui32MemoryOffset;
 
@@ -284,10 +285,9 @@ bool DatalogStart (void)
         sDatalogger.sDatalogControl.sDataLogConfig.ui8ActiveLoggers;
 
     // Switch the datalog on (directly, because this is time critical)
-    DataloggerSetStateImmediate((tDATALOG_STATE)(eDLOGSTATE_RECMODERAM_RUNNING + 
-                                sDatalogger.sDatalogControl.sDataLogConfig.eOpMode));
+    DataloggerSetStateImmediate(eDLOGSTATE_RUNNING);
 
-    return true;
+    return eDATALOG_ERROR_NONE;
 }
 
 //===================================================================================
@@ -300,22 +300,17 @@ bool DatalogStart (void)
  ***********************************************************************************/
 bool DatalogStop (void)
 {
-    if (sDatalogger.eDatalogState < eDLOGSTATE_RECMODERAM_RUNNING ||
-        sDatalogger.eDatalogState > eDLOGSTATE_LIVEMODE_RUNNING)
-        return false;
+    if (sDatalogger.eDatalogState != eDLOGSTATE_RUNNING)
+        return eDATALOG_ERROR_WRONG_STATE;
 
-    DataloggerSetStateImmediate((tDATALOG_STATE)(eDLOGSTATE_RECMODERAM_FINISHING+ 
-                                sDatalogger.sDatalogControl.sDataLogConfig.eOpMode));
+    DataloggerSetStateImmediate(eDLOGSTATE_ABORTING);
 
     // Arbitration-count definiert auf 0 setzen
     sDatalogger.sDatalogSerializer.ui8ArbitrationCount = 0;
 
-    return true;
+    return eDATALOG_ERROR_NONE;
 }
 
-//===================================================================================
-// Funktion: RobLogService
-//===================================================================================
 /********************************************************************************//**
  * \brief Samples the previously selected values
  *
@@ -327,62 +322,40 @@ void DataloggerService (void)
     bool bAbort_flag = false;
     tDATALOG_CHANNEL *pChannel = sDatalogger.sDatalogControl.sDatalogChannels;
 
-    if (sDatalogger.eDatalogState != eDLOGSTATE_RECMODERAM_RUNNING && 
-        sDatalogger.eDatalogState != eDLOGSTATE_RECMODEMEM_RUNNING)
+    if (sDatalogger.eDatalogState != eDLOGSTATE_RUNNING)
         return;
 
     // Alle Daten einspeichern
     while (i < MAX_NUM_LOGS)
     {
         // Check if Channel is activated and running
-        if (!(sDatalogger.sDatalogControl.sDataLogConfig.ui8ActiveLoggers & (1 << i)) ||
-            !(sDatalogger.sDatalogControl.ui8ChannelsRunning & (1 << i)))
+        if (!(sDatalogger.sDatalogControl.ui8ChannelsRunning & (1 << i)))
             continue;
 
         if (!(--pChannel[i].ui16DivideCount))
         {
-            // Typabh�ngiges Buffern der Daten ins RAM
-            switch (ramVars[pChannel[i].ui16Index].ui8DataType)
+            if (sDatalogger.sDatalogControl.sDataLogConfig.eOpMode == eOPMODE_RECMODERAM) 
             {
-            case  TYPE_UI8:
-                ((uint8_t*)pChannel[i].pvRamBuf[pChannel->ui8BufNum])[pChannel[i].ui16ValIdx] = 
-                    *(uint8_t*)ramVars[pChannel[i].ui16Index].pVar;
-                break;
-            case  TYPE_I8:
-                ((int8_t*)pChannel[i].pvRamBuf[pChannel->ui8BufNum])[pChannel[i].ui16ValIdx] = 
-                    *(int8_t*)ramVars[pChannel[i].ui16Index].pVar;
-                break;
-            case  TYPE_UI16:
-                ((uint16_t*)pChannel[i].pvRamBuf[pChannel->ui8BufNum])[pChannel[i].ui16ValIdx] = 
-                    *(uint16_t*)ramVars[pChannel[i].ui16Index].pVar;
-                break;
-            case  TYPE_I16:
-                ((int16_t*)pChannel[i].pvRamBuf[pChannel->ui8BufNum])[pChannel[i].ui16ValIdx] = 
-                    *(int16_t*)ramVars[pChannel[i].ui16Index].pVar;
-                break;
-            case  TYPE_UI32:
-                ((uint32_t*)pChannel[i].pvRamBuf[pChannel->ui8BufNum])[pChannel[i].ui16ValIdx] = 
-                    *(uint32_t*)ramVars[pChannel[i].ui16Index].pVar;
-                break;
-            case  TYPE_I32:
-                ((int32_t*)pChannel[i].pvRamBuf[pChannel->ui8BufNum])[pChannel[i].ui16ValIdx] = 
-                    *(int32_t*)ramVars[pChannel[i].ui16Index].pVar;
-                break;
-            case  TYPE_F32:
-                ((float*)pChannel[i].pvRamBuf[pChannel->ui8BufNum])[pChannel[i].ui16ValIdx] = 
-                    *(float*)ramVars[pChannel[i].ui16Index].pVar;
-                break;
+                // Fill buffer in big endian format
+                for(uint8_t j = 0; j < pChannel->ui8ByteCount; j++)
+                {
+                    sDatalogger.sDatalogControl.pui8Data[sDatalogger.sDatalogControl.ui32CurrentByteIdx++ + j] = 
+                        pChannel[i].ui8RamBuf[0][pChannel->ui8ByteCount - 1 - j];
+                }
             }
-            
-            if (sDatalogger.sDatalogControl.sDataLogConfig.eOpMode == eOPMODE_RECMODEMEM)
+            else if (sDatalogger.sDatalogControl.sDataLogConfig.eOpMode == eOPMODE_RECMODEMEM)
             {
+                // Fill buffer in big endian format
+                for(uint8_t j = 0; j < pChannel->ui8ByteCount; j++)
+                {
+                    pChannel[i].ui8RamBuf[pChannel[i].ui8BufNum][pChannel[i].ui32CurrentCount << (pChannel->ui8ByteCount >> 1) + j] = 
+                        pChannel[i].ui8RamBuf[0][pChannel->ui8ByteCount - 1 - j];
+                }
+
                 // Set flag to empty the currently used buffer
-                if (pChannel[i].ui16ValIdx++ == pChannel[i].ui16RetrieveThreshIdx)
+                if (++pChannel[i].ui16ValIdx == pChannel[i].ui16RetrieveThreshIdx)
                     sDatalogger.sDatalogSerializer.ui8RetrieveFlags |= (1 << i);
 
-                // Debug-Funktion: Mitloggen des maximalen Value-Indexes
-                /* if (pInstance[i].ui16Val_idx > pInstance[i].ui16Debug_max_val_idx) */
-                /*     pInstance[i].ui16Debug_max_val_idx = pInstance[i].ui16Val_idx; */
                 // Make sure that no buffer overflow can happen
                 if (pChannel[i].ui16ValIdx == pChannel[i].ui16RetrieveThreshIdx << 1)
                     bAbort_flag = true;
