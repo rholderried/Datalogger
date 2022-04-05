@@ -15,8 +15,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdlib.h>
-#include "RobLog.h"
-#include "RobLogIF.h"
+#include "DataloggerConfig.h"
 #include "Datalogger.h"
 /************************************************************************************
  * Defines
@@ -164,7 +163,7 @@ tDATALOG_ERROR DatalogInitialize (tDATALOG_CONFIG sDatalogConfig)
      *******************************************************************************/
     if (sDatalogConfig.eOpMode == eOPMODE_RECMODEMEM)
     {
-        ui16TempSize = LOG_MEMORY_SIZE / (ui8LogCount << 1);
+        ui16TempSize = MAX_LOG_BUFFER_SIZE / (ui8LogCount << 1);
 
         for(uint8_t i = 0; i < ui8LogCount; i++)
         {
@@ -265,7 +264,7 @@ tDATALOG_ERROR DatalogStart (void)
         if(sDatalogger.sDatalogControl.sDataLogConfig.eOpMode == eOPMODE_RECMODERAM)
         {
             pChannel[i].ui32CurMemPos = sDatalogger.sDatalogControl.sDatalogChannels[i].ui32MemoryOffset;
-            sDatalogger.sDatalogControl.ui32CurrentByteIdx = 0;
+            sDatalogger.sDatalogControl.ui32CurIdx = 0;
         }
         else if(sDatalogger.sDatalogControl.sDataLogConfig.eOpMode == eOPMODE_RECMODEMEM)
         {
@@ -339,13 +338,13 @@ void DataloggerService (void)
                 // Fill buffer in big endian format
                 for(uint8_t j = 0; j < pChannel->ui8ByteCount; j++)
                 {
-                    sDatalogger.sDatalogControl.pui8Data[sDatalogger.sDatalogControl.ui32CurrentByteIdx++ + j] = 
+                    sDatalogger.sDatalogControl.pui8Data[sDatalogger.sDatalogControl.ui32CurIdx++ + j] = 
                         pChannel[i].ui8RamBuf[0][pChannel->ui8ByteCount - 1 - j];
                 }
             }
             else if (sDatalogger.sDatalogControl.sDataLogConfig.eOpMode == eOPMODE_RECMODEMEM)
             {
-                // Fill buffer in big endian format
+                // Fill the appropirate arbitration buffer with data in big endian format
                 for(uint8_t j = 0; j < pChannel->ui8ByteCount; j++)
                 {
                     pChannel[i].ui8RamBuf[pChannel[i].ui8BufNum][pChannel[i].ui32CurrentCount << (pChannel->ui8ByteCount >> 1) + j] = 
