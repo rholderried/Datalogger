@@ -15,7 +15,6 @@
  * Includes
  ***********************************************************************************/
 #include <stdint.h>
-#include "RobLog.h"
 
 /************************************************************************************
  * Defines
@@ -23,7 +22,6 @@
 #define MEMORY_HEADER_SIZE()       (sizeof(tDATALOG_MEMORY_HEADER))
 #define MAX_NUM_LOGS                8
 #define ARBITRATION_BUFFER_SIZE     20
-#define LOG_MEMORY_SIZE             512
 
 // Live-Datenlogger
 #define MIN_SAMPLE_TIME_MS          2
@@ -96,19 +94,19 @@ typedef struct
 typedef struct
 {
     // Channel config variables
-    uint16_t    ui16Divider;            // Frequency divider
-    uint32_t    ui32MemoryOffset;      // Offset address of the channel
-    uint32_t    ui32RecordLength;       // Record length of the channel
+    uint16_t    ui16Divider;            /*!< Frequency divider of this channel.*/
+    uint32_t    ui32MemoryOffset;       /*!< Log buffer offset of the channel.*/
+    uint32_t    ui32RecordLength;       /*!< Record length of the channel */
     uint8_t    *pui8Variable;           /*!< Memory address of the target variable.*/
     uint8_t     ui8ByteCount;           /*!< Byte count of the variable.*/
     // Channel parameter variables
-    uint16_t    ui16RetrieveThreshIdx;  // Retrieve threshold index of this channel
+    uint16_t    ui16RetrieveThreshIdx; /*!< Retrieve threshold index of this channel*/
     // Channel state variables
-    uint8_t     ui8BufNum;              // Current buffer number
-    uint16_t    ui16ValIdx;             // Current buffer value index
-    uint32_t    ui32CurMemPos;          // Current memory position
-    uint32_t    ui32CurrentCount;       // Current record count
-    uint16_t    ui16DivideCount;        // Count for the frequency divider
+    uint8_t     ui8BufNum;              /*!< Current buffer number*/
+    uint16_t    ui16ValIdx;             /*!< Current buffer value index*/
+    uint32_t    ui32CurMemPos;          /*!<Current memory position*/
+    uint32_t    ui32CurrentCount;       /*!< Current record count*/
+    uint16_t    ui16DivideCount;        /*!< Count for the frequency divider*/
     // RAM buffer for this channel
     uint8_t*    ui8RamBuf[2]; 
 }tDATALOG_CHANNEL;
