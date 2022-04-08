@@ -264,7 +264,7 @@ tDATALOG_ERROR DatalogStart (void)
         if(sDatalogger.sDatalogControl.sDataLogConfig.eOpMode == eOPMODE_RECMODERAM)
         {
             pChannel[i].ui32CurMemPos = sDatalogger.sDatalogControl.sDatalogChannels[i].ui32MemoryOffset;
-            sDatalogger.sDatalogControl.ui32CurIdx = 0;
+            sDatalogger.sDatalogControl.ui32CurrentByteIdx = 0;
         }
         else if(sDatalogger.sDatalogControl.sDataLogConfig.eOpMode == eOPMODE_RECMODEMEM)
         {
@@ -338,7 +338,7 @@ void DataloggerService (void)
                 // Fill buffer in big endian format
                 for(uint8_t j = 0; j < pChannel->ui8ByteCount; j++)
                 {
-                    sDatalogger.sDatalogControl.pui8Data[sDatalogger.sDatalogControl.ui32CurIdx++ + j] = 
+                    sDatalogger.sDatalogControl.pui8Data[sDatalogger.sDatalogControl.ui32CurrentByteIdx++ + j] = 
                         pChannel[i].ui8RamBuf[0][pChannel->ui8ByteCount - 1 - j];
                 }
             }
