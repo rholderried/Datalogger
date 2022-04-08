@@ -122,7 +122,7 @@ typedef struct
     uint8_t             ui8ChannelsRunning;
     tDATALOG_CHANNEL    sDatalogChannels[MAX_NUM_LOGS];
     uint8_t            *pui8Data;
-    uint32_t            ui32CurIdx;
+    uint32_t            ui32CurrentByteIdx;
 }tDATALOG_CONTROL;
 
 #define tDATALOG_CONTROL_DEFAULTS {tDATALOG_CONFIG_DEFAULTS, 0, {tDATALOG_CHANNEL_DEFAULTS}, NULL, 0}
