@@ -86,7 +86,7 @@ tDATALOG_ERROR RegisterLog (uint8_t ui8LogNum, uint16_t ui16FreqDiv, uint32_t ui
  ***********************************************************************************/
 tDATALOG_ERROR DatalogInitialize (tDATALOG_CONFIG sDatalogConfig)
 {
-    //uint8_t     i = 0;
+    uint8_t     i = 0;
     uint8_t     ui8LogCount = 0;
     uint8_t     ui8LogIdx[MAX_NUM_LOGS] = {0};
     uint16_t    ui16TempSize;
@@ -101,25 +101,26 @@ tDATALOG_ERROR DatalogInitialize (tDATALOG_CONFIG sDatalogConfig)
     /********************************************************************************
      * Free former memory allocation
      *******************************************************************************/
-    if(sDatalogger.sDatalogControl.sDataLogConfig.eOpMode == eOPMODE_RECMODERAM)
-    {
-        uint8_t i = 0;
+
     // If memory has been already allocated, free these memory portions
-        while (sDatalogger.sDatalogControl.sDataLogConfig.ui8ActiveLoggers > 0)
+    while (sDatalogger.sDatalogControl.sDataLogConfig.ui8ActiveLoggers > 0)
+    {
+        if (sDatalogger.sDatalogControl.sDataLogConfig.ui8ActiveLoggers & (1 << i))
         {
-            if (sDatalogger.sDatalogControl.sDataLogConfig.ui8ActiveLoggers & (1 << i))
+            if (sDatalogger.sDatalogControl.sDataLogConfig.eOpMode == eOPMODE_RECMODERAM)
+                free(sDatalogger.sDatalogControl.pui8Data);
+            else if(sDatalogger.sDatalogControl.sDataLogConfig.eOpMode == eOPMODE_RECMODEMEM)
             {
                 free(sDatalogger.sDatalogControl.sDatalogChannels[i].ui8RamBuf[0]);
                 free(sDatalogger.sDatalogControl.sDatalogChannels[i].ui8RamBuf[1]);
-
-                sDatalogger.sDatalogControl.sDataLogConfig.ui8ActiveLoggers &= ~(1 << i);
             }
-        i++;
+            sDatalogger.sDatalogControl.sDataLogConfig.ui8ActiveLoggers &= ~(1 << i);
         }
+    i++;
     }
 
     // Preinitialize Datalog structure
-    for(uint8_t i = 0; i < MAX_NUM_LOGS; i++)
+    for(i = 0; i < MAX_NUM_LOGS; i++)
     {
         if (!(sDatalogConfig.ui8ActiveLoggers & (1 << i)))
             continue;
@@ -165,7 +166,7 @@ tDATALOG_ERROR DatalogInitialize (tDATALOG_CONFIG sDatalogConfig)
     {
         ui16TempSize = MAX_LOG_BUFFER_SIZE / (ui8LogCount << 1);
 
-        for(uint8_t i = 0; i < ui8LogCount; i++)
+        for(i = 0; i < ui8LogCount; i++)
         {
             pChannel = &sDatalogger.sDatalogControl.sDatalogChannels[ui8LogIdx[i]];
 
