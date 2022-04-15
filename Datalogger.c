@@ -265,7 +265,7 @@ tDATALOG_ERROR DatalogStart (void)
         if(sDatalogger.sDatalogControl.sDataLogConfig.eOpMode == eOPMODE_RECMODERAM)
         {
             pChannel[i].ui32CurMemPos = sDatalogger.sDatalogControl.sDatalogChannels[i].ui32MemoryOffset;
-            sDatalogger.sDatalogControl.ui32CurrentByteIdx = 0;
+            sDatalogger.sDatalogControl.ui32CurIdx = 0;
         }
         else if(sDatalogger.sDatalogControl.sDataLogConfig.eOpMode == eOPMODE_RECMODEMEM)
         {
@@ -339,8 +339,8 @@ void DataloggerService (void)
                 // Fill buffer in big endian format
                 for(uint8_t j = 0; j < pChannel->ui8ByteCount; j++)
                 {
-                    sDatalogger.sDatalogControl.pui8Data[sDatalogger.sDatalogControl.ui32CurrentByteIdx++ + j] = 
-                        pChannel[i].ui8RamBuf[0][pChannel->ui8ByteCount - 1 - j];
+                    sDatalogger.sDatalogControl.pui8Data[sDatalogger.sDatalogControl.ui32CurIdx++ + j] = 
+                        pChannel[i].pui8Variable[pChannel->ui8ByteCount - 1 - j];
                 }
             }
             else if (sDatalogger.sDatalogControl.sDataLogConfig.eOpMode == eOPMODE_RECMODEMEM)
@@ -349,7 +349,7 @@ void DataloggerService (void)
                 for(uint8_t j = 0; j < pChannel->ui8ByteCount; j++)
                 {
                     pChannel[i].ui8RamBuf[pChannel[i].ui8BufNum][pChannel[i].ui32CurrentCount << (pChannel->ui8ByteCount >> 1) + j] = 
-                        pChannel[i].ui8RamBuf[0][pChannel->ui8ByteCount - 1 - j];
+                        pChannel[i].pui8Variable[pChannel->ui8ByteCount - 1 - j];
                 }
 
                 // Set flag to empty the currently used buffer
