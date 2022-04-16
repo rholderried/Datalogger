@@ -348,7 +348,7 @@ void DataloggerService (void)
                 // Fill the appropirate arbitration buffer with data in big endian format
                 for(uint8_t j = 0; j < pChannel->ui8ByteCount; j++)
                 {
-                    pChannel[i].ui8RamBuf[pChannel[i].ui8BufNum][pChannel[i].ui32CurrentCount << (pChannel->ui8ByteCount >> 1) + j] = 
+                    pChannel[i].ui8RamBuf[pChannel[i].ui8BufNum][(pChannel[i].ui32CurrentCount << (pChannel->ui8ByteCount >> 1)) + j] = 
                         pChannel[i].pui8Variable[pChannel->ui8ByteCount - 1 - j];
                 }
 
