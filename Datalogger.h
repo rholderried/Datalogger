@@ -124,7 +124,7 @@ typedef struct
     uint8_t             ui8ChannelsRunning;
     tDATALOG_CHANNEL    sDatalogChannels[MAX_NUM_LOGS];
     uint8_t            *pui8Data;
-    uint32_t            ui32CurrentByteIdx;
+    uint32_t            ui32CurIdx;
 }tDATALOG_CONTROL;
 
 #define tDATALOG_CONTROL_DEFAULTS {tDATALOG_CONFIG_DEFAULTS, 0, {tDATALOG_CHANNEL_DEFAULTS}, NULL, 0}
@@ -136,10 +136,10 @@ typedef struct
 /** @brief Log description header (Leading information for each log) */
 typedef struct
 {
-    uint16_t ui16Divider;           // Timebase frequency divider
-    uint32_t ui32MemoryOffset;      // Offset address of the channel
-    uint8_t *pui8Variable;           /*!< Memory address of the target variable.*/
-    uint8_t  ui8ByteCount;           /*!< Byte count of the variable.*/
+    uint16_t ui16Divider;       /*!< Timebase frequency divider*/
+    uint32_t ui32MemoryOffset;  /*!< Offset address of the channel*/
+    uint8_t *pui8Variable;      /*!< Memory address of the target variable.*/
+    uint8_t  ui8ByteCount;      /*!< Byte count of the variable.*/
 }tDATALOG_CHANNEL_MEMORY;
 
 #define tDATALOG_CHANNEL_MEMORY_DEFAULTS {0, 0, NULL, 0}
@@ -203,7 +203,7 @@ typedef struct
 
 /* #define tsDATALOG_MEMORY_READ_DEFAULTS {0, 0} */
 
-// RobLog Main data struct
+// Main data struct of the datalogger
 typedef struct
 {
     // Datalog-Parameter
@@ -225,7 +225,7 @@ typedef struct
 // #define tDATALOGGER_DEFAULTS {0}
 
 /************************************************************************************
- * Funktionsdeklarationen
+ * Function declarations
  ***********************************************************************************/
 // API functions
 tDATALOG_ERROR RegisterLog (uint8_t ui8LogNum, uint16_t ui16FreqDiv, uint32_t ui32RecLen, uint8_t *pui8Variable, uint8_t ui8ByteCount);
