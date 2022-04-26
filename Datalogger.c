@@ -55,8 +55,8 @@ tDATALOG_ERROR RegisterLog (uint8_t ui8LogNum, uint16_t ui16FreqDiv, uint32_t ui
     pChannel = &sDatalogger.sDatalogControl.sDatalogChannels[ui8LogNum - 1];
     pMemChannel = &sDatalogger.sMemoryHeader.sDatalogChannelsMemory[ui8LogNum - 1];
 
-    if (sDatalogger.eDatalogState != eDLOGSTATE_INITIALIZED ||
-        sDatalogger.eDatalogState != eDLOGSTATE_UNINITIALIZED)
+    if (!(sDatalogger.eDatalogState != eDLOGSTATE_INITIALIZED ||
+        sDatalogger.eDatalogState != eDLOGSTATE_UNINITIALIZED))
         return eDATALOG_ERROR_WRONG_STATE;
 
     // Initialize parameter variables
@@ -67,7 +67,7 @@ tDATALOG_ERROR RegisterLog (uint8_t ui8LogNum, uint16_t ui16FreqDiv, uint32_t ui
 
 
     // New value is set -> Need to initialize the datalogger prior to next log run.
-    sDatalogger.eDatalogState = eDLOGSTATE_UNINITIALIZED;
+    DatalogSetStateImmediate(eDLOGSTATE_UNINITIALIZED);
 
     return eDATALOG_ERROR_NONE;
 }
@@ -188,9 +188,15 @@ tDATALOG_ERROR DatalogInitialize (tDATALOG_CONFIG sDatalogConfig)
     sDatalogger.sDatalogControl.sDataLogConfig = sDatalogConfig;
 
     if (sDatalogConfig.eOpMode != eOPMODE_RECMODEMEM)
-        sDatalogger.eDatalogStatePending = eDLOGSTATE_INITIALIZED;
+    {
+        DatalogSetStateImmediate(eDLOGSTATE_INITIALIZED);
+        // sDatalogger.eDatalogStatePending = eDLOGSTATE_INITIALIZED;
+    }
     else 
-        sDatalogger.eDatalogStatePending = eDLOGSTATE_FORMAT_MEMORY;
+    {
+        DatalogSetStateImmediate(eDLOGSTATE_FORMAT_MEMORY);
+        // sDatalogger.eDatalogStatePending = eDLOGSTATE_FORMAT_MEMORY;
+    }
 
     return eDATALOG_ERROR_NONE;
 }
@@ -253,7 +259,10 @@ tDATALOG_ERROR DatalogStart (void)
     while (i < MAX_NUM_LOGS)
     {
         if (!(sDatalogger.sDatalogControl.sDataLogConfig.ui8ActiveLoggers & (1 << i)))
+        {
+            i++;
             continue;
+        }
 
         // Reset of the state variables
         pChannel[i].ui8BufNum = 0;
@@ -284,7 +293,7 @@ tDATALOG_ERROR DatalogStart (void)
         sDatalogger.sDatalogControl.sDataLogConfig.ui8ActiveLoggers;
 
     // Switch the datalog on (directly, because this is time critical)
-    DataloggerSetStateImmediate(eDLOGSTATE_RUNNING);
+    DatalogSetStateImmediate(eDLOGSTATE_RUNNING);
 
     return eDATALOG_ERROR_NONE;
 }
@@ -302,7 +311,7 @@ bool DatalogStop (void)
     if (sDatalogger.eDatalogState != eDLOGSTATE_RUNNING)
         return eDATALOG_ERROR_WRONG_STATE;
 
-    DataloggerSetStateImmediate(eDLOGSTATE_ABORTING);
+    DatalogSetStateImmediate(eDLOGSTATE_ABORTING);
 
     // Arbitration-count definiert auf 0 setzen
     sDatalogger.sDatalogSerializer.ui8ArbitrationCount = 0;
@@ -315,7 +324,7 @@ bool DatalogStop (void)
  *
  * This routine must get called regularly with a defined time base.
  ***********************************************************************************/
-void DataloggerService (void)
+void DatalogService (void)
 {
     uint8_t i = 0;
     bool bAbort_flag = false;
@@ -591,7 +600,7 @@ void DataloggerService (void)
  *
  * @returns Error indicator
  ***********************************************************************************/
-void DataloggerStatemachine (void)
+void DatalogStatemachine (void)
 {
     //tROBLOG_ERROR eErrorIndicator = eROBLOG_ERROR_NONE;
     tDATALOG_STATE eNewState = sDatalogger.eDatalogState;
@@ -801,7 +810,7 @@ void DataloggerStatemachine (void)
     default:
         break;
     }
-    DataloggerSetState();
+    DatalogSetState();
     
 }
 
@@ -813,7 +822,7 @@ void DataloggerStatemachine (void)
  *
  * Handles the state transitions from one state to another. 
  ***********************************************************************************/
-static void DataloggerSetState()
+static void DatalogSetState()
 {
     bool successFlag = false;
 
@@ -867,7 +876,7 @@ static void DataloggerSetState()
  * \brief Set a new datalogger state immediately without handling any state
  * transitions. 
  ***********************************************************************************/
-void DataloggerSetStateImmediate (tDATALOG_STATE eNewState)
+void DatalogSetStateImmediate (tDATALOG_STATE eNewState)
 {
     sDatalogger.eDatalogState = sDatalogger.eDatalogStatePending = eNewState;
 }

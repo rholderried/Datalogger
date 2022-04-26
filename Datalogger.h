@@ -76,21 +76,24 @@ typedef struct
 }tDATALOG_CONFIG;
 
 #define tDATALOG_CONFIG_DEFAULTS {0, 0, eOPMODE_RECMODERAM}
+// #define tDATALOG_CONFIG_DEFAULTS {0}
 
-typedef struct
-{
-    uint8_t     ui8LogNum;          /*!< Number of the log to fill.*/
-    uint16_t    ui16Divider;        /*!< Frequency divider for this log.*/
-    uint32_t    ui32RecordLength;   /*!< Maximum record length of this log.*/
-    uint8_t    *pui8Variable;       /*!< Memory address of the target variable.*/
-    uint8_t     ui8ByteCount;       /*!< Byte count of the variable.*/
-}tDATALOG_INITS;
+// typedef struct
+// {
+//     uint8_t     ui8LogNum;          /*!< Number of the log to fill.*/
+//     uint16_t    ui16Divider;        /*!< Frequency divider for this log.*/
+//     uint32_t    ui32RecordLength;   /*!< Maximum record length of this log.*/
+//     uint8_t    *pui8Variable;       /*!< Memory address of the target variable.*/
+//     uint8_t     ui8ByteCount;       /*!< Byte count of the variable.*/
+// }tDATALOG_INITS;
 
-#define tDATALOG_INITS_DEFAULTS {0}
+// #define tDATALOG_INITS_DEFAULTS {0}
 
 /************************************************************************************
  * Datalog control data
  ***********************************************************************************/
+
+/** @brief Datalog channel data structure */
 typedef struct
 {
     // Channel config variables
@@ -112,8 +115,9 @@ typedef struct
 }tDATALOG_CHANNEL;
 
 #define tDATALOG_CHANNEL_DEFAULTS {0, 0, 0, NULL, 0, 0, 0, 0, 0, 0, 1, {NULL}}
+// #define tDATALOG_CHANNEL_DEFAULTS {0}
 
-// Datalog control structure
+/** @brief Datalog control structure */
 typedef struct
 {
     tDATALOG_CONFIG     sDataLogConfig;
@@ -124,11 +128,12 @@ typedef struct
 }tDATALOG_CONTROL;
 
 #define tDATALOG_CONTROL_DEFAULTS {tDATALOG_CONFIG_DEFAULTS, 0, {tDATALOG_CHANNEL_DEFAULTS}, NULL, 0}
+// #define tDATALOG_CONTROL_DEFAULTS {0}
 
 /************************************************************************************
  * Record memory mode header module
  ***********************************************************************************/
-// Log description header (Leading information for each log)
+/** @brief Log description header (Leading information for each log) */
 typedef struct
 {
     uint16_t ui16Divider;           // Timebase frequency divider
@@ -137,18 +142,19 @@ typedef struct
     uint8_t  ui8ByteCount;           /*!< Byte count of the variable.*/
 }tDATALOG_CHANNEL_MEMORY;
 
-#define tDATALOG_CHANNEL_MEMORY_DEFAULTS {0, 0, 0}
+#define tDATALOG_CHANNEL_MEMORY_DEFAULTS {0, 0, NULL, 0}
+// #define tDATALOG_CHANNEL_MEMORY_DEFAULTS {0}
 
-// Header f�r die Logvariablen-Instanzen auf dem externen Speichermedium
+/** @brief Header for the data on an external storage medium */
 typedef struct
 {
-    /* uint8_t                     ui8ActiveLoggers; */
     uint32_t                    ui32TimeBase;
     uint32_t                    ui32LastAddress;
     tDATALOG_CHANNEL_MEMORY     sDatalogChannelsMemory[MAX_NUM_LOGS];
 }tDATALOG_MEMORY_HEADER;
 
-#define tDATALOG_MEMORY_HEADER_DEFAULTS {/*0,*/ 0, 0, {tDATALOG_CHANNEL_MEMORY_DEFAULTS}}
+#define tDATALOG_MEMORY_HEADER_DEFAULTS {0, 0, {tDATALOG_CHANNEL_MEMORY_DEFAULTS}}
+// #define tDATALOG_MEMORY_HEADER_DEFAULTS {0}
 
 /************************************************************************************
  * Serializer control struct 
@@ -163,7 +169,7 @@ typedef struct
     uint8_t     ui8RetrieveFlags;
 }tDATALOG_RECMODEMEM_SERIALIZER;
 
-#define tDATALOG_RECMODEMEM_SERIALIIZER_DEFAULTS {{0}, 0, 0, 0, 0}
+#define tDATALOG_RECMODEMEM_SERIALIIZER_DEFAULTS {0}
 
 /* typedef struct */
 /* { */
@@ -178,7 +184,7 @@ typedef struct
 /*     tDATALOG_RECMODEMEM_SCHEDULER_DEFAULTS \ */
 /* } */
 
-// Struktur f�r den Live-Datenlogger
+/** @brief Structure for the Live-Mode Datalogger*/
 typedef struct
 {
     int8_t      i8SampleTimerIdx;
@@ -186,6 +192,7 @@ typedef struct
 }tDATALOG_LIVEMODE_TIMER;
 
 #define tDATALOG_LIVEMODE_TIMER_DEFAULTS {-1, -1}
+// #define tDATALOG_LIVEMODE_TIMER_DEFAULTS {0}
 
 /* typedef struct */
 /* { */
@@ -214,8 +221,8 @@ typedef struct
     tDATALOG_LIVEMODE_TIMER_DEFAULTS, \
     tDATALOG_MEMORY_HEADER_DEFAULTS, \
     tDATALOG_RECMODEMEM_SERIALIIZER_DEFAULTS,\
-    tDATALOG_CONTROL_DEFAULTS \
-}
+    tDATALOG_CONTROL_DEFAULTS}
+// #define tDATALOGGER_DEFAULTS {0}
 
 /************************************************************************************
  * Funktionsdeklarationen
@@ -226,11 +233,11 @@ tDATALOG_ERROR DatalogInitialize (tDATALOG_CONFIG sDatalogConfig);
 tDATALOG_ERROR DatalogStart (void);
 bool DatalogStop (void);
 // Datalog service methods
-void DataloggerService (void);
-void DataloggerStatemachine (void);
+void DatalogService (void);
+void DatalogStatemachine (void);
 // Internal functions
-static void DataloggerSetState (void);
-static void DataloggerSetStateImmediate (tDATALOG_STATE eNewState);
+static void DatalogSetState (void);
+static void DatalogSetStateImmediate (tDATALOG_STATE eNewState);
 
 /* extern bool LiveModeDatalogStart (uint8_t ui8Var_count, uint16_t* pui16Var_nr, uint16_t pui16Divider); */
 /* extern bool LiveModeDatalogStop(void); */
