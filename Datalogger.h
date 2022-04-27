@@ -68,27 +68,6 @@ typedef enum
 /************************************************************************************
  * Structure type definitions
  ***********************************************************************************/
-// Log configuration structure
-typedef struct
-{
-    uint8_t             ui8ActiveLoggers;
-    uint32_t            ui32TimeBase;
-    tDATALOG_OPMODES    eOpMode;
-}tDATALOG_CONFIG;
-
-#define tDATALOG_CONFIG_DEFAULTS {0, 0, eOPMODE_RECMODERAM}
-// #define tDATALOG_CONFIG_DEFAULTS {0}
-
-// typedef struct
-// {
-//     uint8_t     ui8LogNum;          /*!< Number of the log to fill.*/
-//     uint16_t    ui16Divider;        /*!< Frequency divider for this log.*/
-//     uint32_t    ui32RecordLength;   /*!< Maximum record length of this log.*/
-//     uint8_t    *pui8Variable;       /*!< Memory address of the target variable.*/
-//     uint8_t     ui8ByteCount;       /*!< Byte count of the variable.*/
-// }tDATALOG_INITS;
-
-// #define tDATALOG_INITS_DEFAULTS {0}
 
 /************************************************************************************
  * Datalog control data
@@ -121,14 +100,14 @@ typedef struct
 /** @brief Datalog control structure */
 typedef struct
 {
-    tDATALOG_CONFIG     sDataLogConfig;
+    tDATALOG_OPMODES    eOpMode;
+    uint8_t             ui8ActiveLoggers;
     uint8_t             ui8ChannelsRunning;
+    uint8_t             *pui8Data;
     tDATALOG_CHANNEL    sDatalogChannels[MAX_NUM_LOGS];
-    uint8_t            *pui8Data;
-    uint32_t            ui32CurIdx;
 }tDATALOG_CONTROL;
 
-#define tDATALOG_CONTROL_DEFAULTS {tDATALOG_CONFIG_DEFAULTS, 0, {tDATALOG_CHANNEL_DEFAULTS}, NULL, 0}
+#define tDATALOG_CONTROL_DEFAULTS {eOPMODE_RECMODERAM, 0, 0, NULL, {tDATALOG_CHANNEL_DEFAULTS}}
 // #define tDATALOG_CONTROL_DEFAULTS {0}
 
 /************************************************************************************
@@ -208,6 +187,8 @@ typedef struct
 typedef struct
 {
     // Datalog-Parameter
+    uint32_t                        ui32TimeBase_Hz;
+
     tDATALOG_STATE                  eDatalogState;
     tDATALOG_STATE                  eDatalogStatePending;
     tDATALOG_LIVEMODE_TIMER         sDatalogLiveModeTimer;
@@ -217,6 +198,7 @@ typedef struct
 }tDATALOGGER;
 
 #define tDATALOGGER_DEFAULTS {\
+    0,\
     eDLOGSTATE_UNINITIALIZED, \
     eDLOGSTATE_UNINITIALIZED, \
     tDATALOG_LIVEMODE_TIMER_DEFAULTS, \
@@ -233,7 +215,7 @@ tDATALOGGER* DatalogGetData(void);
 #endif
 // API functions
 tDATALOG_ERROR RegisterLog (uint8_t ui8LogNum, uint16_t ui16FreqDiv, uint32_t ui32RecLen, uint8_t *pui8Variable, uint8_t ui8ByteCount);
-tDATALOG_ERROR DatalogInitialize (tDATALOG_CONFIG sDatalogConfig);
+tDATALOG_ERROR DatalogInitialize (void);
 tDATALOG_ERROR DatalogStart (void);
 bool DatalogStop (void);
 // Datalog service methods
