@@ -1,43 +1,30 @@
 /********************************************************************************//**
- * \file RobLogIF.h
+ * \file DataloggerSCI.c
+ * 
  * \author Roman Holderried
  *
- * \brief Typedefs, function declarations for the RobLog interface
+ * \brief SCI interface functions.
  *
  * <b> History </b>
- *      - 2021-05-01 - File creation.
+ *      - 2022-04-27 - File creation.
  *                     
  ***********************************************************************************/
+#define SCI
+#ifdef SCI
 /************************************************************************************
  * Includes
  ***********************************************************************************/
 #include <stdint.h>
 #include <stdbool.h>
-#include "RobLog.h"
+#include "DataloggerSCI.h"
 /************************************************************************************
  * Defines
  ***********************************************************************************/
 /************************************************************************************
- * Type definitions
+ * State variables
  ***********************************************************************************/
-
-typedef enum 
-{
-    eROBLOGIF_IDLE,
-    eROBLOGIF_BUSY,
-    eROBLOGIF_ERROR
-}tROBLOGIF_NOTIFICATION;
-
-typedef enum 
-{
-    eROBLOGIF_ERROR_NONE
-}tROBLOGIF_ERROR;
 /************************************************************************************
- * Function declarations
+ * Function definition
  ***********************************************************************************/
-bool initiateDatalogReadout (uint8_t *pBuf, uint16_t ui16NoOfBytes);
-bool memoryWrite(uint8_t *pBuf, uint32_t ui32Address, uint16_t ui16NoOfBytes); 
-tROBLOGIF_NOTIFICATION checkMemoryInterfaceState(void);
-
-
+#endif
 // EOF

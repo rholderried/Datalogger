@@ -9,8 +9,8 @@
  *                     
  ***********************************************************************************/
 
-#ifndef INCLUDES_DATALOG_H_
-#define INCLUDES_DATALOG_H_
+#ifndef DATALOGGER_H_
+#define DATALOGGER_H_
 /************************************************************************************
  * Includes
  ***********************************************************************************/
@@ -61,7 +61,8 @@ typedef enum
     eDATALOG_ERROR_NONE                     = 0,
     eDATALOG_ERROR_WRONG_STATE              = 1,
     eDATALOG_ERROR_LOG_NUMBER_INVALID       = 2,
-    eDATALOG_ERROR_NUMBER_OF_LOGS_EXCEEDED  = 3
+    eDATALOG_ERROR_NUMBER_OF_LOGS_EXCEEDED  = 3,
+    eDATALOG_ERROR_NOT_ENOUGH_MEMORY        = 4
 }tDATALOG_ERROR;
 
 /************************************************************************************
@@ -227,6 +228,9 @@ typedef struct
 /************************************************************************************
  * Function declarations
  ***********************************************************************************/
+#ifdef UNITTEST
+tDATALOGGER* DatalogGetData(void);
+#endif
 // API functions
 tDATALOG_ERROR RegisterLog (uint8_t ui8LogNum, uint16_t ui16FreqDiv, uint32_t ui32RecLen, uint8_t *pui8Variable, uint8_t ui8ByteCount);
 tDATALOG_ERROR DatalogInitialize (tDATALOG_CONFIG sDatalogConfig);
@@ -239,6 +243,7 @@ void DatalogStatemachine (void);
 static void DatalogSetState (void);
 static void DatalogSetStateImmediate (tDATALOG_STATE eNewState);
 
+
 /* extern bool LiveModeDatalogStart (uint8_t ui8Var_count, uint16_t* pui16Var_nr, uint16_t pui16Divider); */
 /* extern bool LiveModeDatalogStop(void); */
 /* void LiveModeSampleData (void); */
@@ -246,5 +251,5 @@ static void DatalogSetStateImmediate (tDATALOG_STATE eNewState);
 // void LiveModeCallback (void);
 /* extern bool InitializeMemoryRead (void); */
 
-#endif // INCLUDES_DATALOG_H_
+#endif // DATALOGGER_H_
 // EOF datalog.h-------------------------------------------------------------------

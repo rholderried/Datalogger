@@ -34,9 +34,61 @@ extern uint8_t ui8Byte_count[];
 /************************************************************************************
  * Function definitions
  ***********************************************************************************/
+//===================================================================================
+// DatalogGetData
+//===================================================================================
+#ifdef UNITTEST
+/********************************************************************************//**
+ * \brief Returns a pointer to the usually hidden data structure
+ ***********************************************************************************/
+tDATALOGGER* DatalogGetData(void)
+{
+    return &sDatalogger;
+}
+#endif
 
 //===================================================================================
-// Funktion: RegisterLog
+// _DatalogClearMemory
+//===================================================================================
+/********************************************************************************//**
+ * \brief Frees allocated memory space
+ ***********************************************************************************/
+void _DatalogClearMemory (void)
+{
+    // If memory has been already allocated, free these memory portions
+    for (uint8_t i = 0; i < MAX_NUM_LOGS; i++)
+    {
+        if (!sDatalogger.sDatalogControl.sDataLogConfig.ui8ActiveLoggers)
+            break;
+
+        if (sDatalogger.sDatalogControl.sDataLogConfig.ui8ActiveLoggers & (1 << i))
+        {
+            if (sDatalogger.sDatalogControl.sDataLogConfig.eOpMode == eOPMODE_RECMODERAM)
+                free(sDatalogger.sDatalogControl.pui8Data);
+            else if(sDatalogger.sDatalogControl.sDataLogConfig.eOpMode == eOPMODE_RECMODEMEM)
+            {
+                free(sDatalogger.sDatalogControl.sDatalogChannels[i].ui8RamBuf[0]);
+                free(sDatalogger.sDatalogControl.sDatalogChannels[i].ui8RamBuf[1]);
+            }
+            sDatalogger.sDatalogControl.sDataLogConfig.ui8ActiveLoggers &= ~(1 << i);
+        }
+    i++;
+    }   
+}
+
+//===================================================================================
+// DatalogClearMemory
+//===================================================================================
+/********************************************************************************//**
+ * \brief API function to free formerly allocated memory
+ ***********************************************************************************/
+void DatalogClearMemory(void)
+{
+    _DatalogClearMemory();
+}
+
+//===================================================================================
+// RegisterLog
 //===================================================================================
 /********************************************************************************//**
  * \brief This function registers a log into the data structure
@@ -101,23 +153,7 @@ tDATALOG_ERROR DatalogInitialize (tDATALOG_CONFIG sDatalogConfig)
     /********************************************************************************
      * Free former memory allocation
      *******************************************************************************/
-
-    // If memory has been already allocated, free these memory portions
-    while (sDatalogger.sDatalogControl.sDataLogConfig.ui8ActiveLoggers > 0)
-    {
-        if (sDatalogger.sDatalogControl.sDataLogConfig.ui8ActiveLoggers & (1 << i))
-        {
-            if (sDatalogger.sDatalogControl.sDataLogConfig.eOpMode == eOPMODE_RECMODERAM)
-                free(sDatalogger.sDatalogControl.pui8Data);
-            else if(sDatalogger.sDatalogControl.sDataLogConfig.eOpMode == eOPMODE_RECMODEMEM)
-            {
-                free(sDatalogger.sDatalogControl.sDatalogChannels[i].ui8RamBuf[0]);
-                free(sDatalogger.sDatalogControl.sDatalogChannels[i].ui8RamBuf[1]);
-            }
-            sDatalogger.sDatalogControl.sDataLogConfig.ui8ActiveLoggers &= ~(1 << i);
-        }
-    i++;
-    }
+    _DatalogClearMemory();
 
     // Preinitialize Datalog structure
     for(i = 0; i < MAX_NUM_LOGS; i++)
@@ -164,14 +200,15 @@ tDATALOG_ERROR DatalogInitialize (tDATALOG_CONFIG sDatalogConfig)
      *******************************************************************************/
     if (sDatalogConfig.eOpMode == eOPMODE_RECMODEMEM)
     {
+        // temporary buffer is always set to max size
         ui16TempSize = MAX_LOG_BUFFER_SIZE / (ui8LogCount << 1);
 
         for(i = 0; i < ui8LogCount; i++)
         {
             pChannel = &sDatalogger.sDatalogControl.sDatalogChannels[ui8LogIdx[i]];
 
-            pChannel->ui8RamBuf[0] = malloc((size_t)(ui16TempSize));
-            pChannel->ui8RamBuf[1] = malloc((size_t)(ui16TempSize));
+            pChannel->ui8RamBuf[0] = (uint8_t*)malloc((size_t)(ui16TempSize));
+            pChannel->ui8RamBuf[1] = (uint8_t*)malloc((size_t)(ui16TempSize));
 
             // Retrieve data whenn the index exceeds half of the memory size
             pChannel->ui16RetrieveThreshIdx = ui16TempSize >> 2;
@@ -184,6 +221,16 @@ tDATALOG_ERROR DatalogInitialize (tDATALOG_CONFIG sDatalogConfig)
 
         sDatalogger.sMemoryHeader.ui32TimeBase = sDatalogConfig.ui32TimeBase;
     }
+    else if (sDatalogConfig.eOpMode == eOPMODE_RECMODERAM)
+    {
+        if (ui32CurrentByteSize > MAX_LOG_BUFFER_SIZE)
+            return eDATALOG_ERROR_NOT_ENOUGH_MEMORY;
+        
+        sDatalogger.sDatalogControl.pui8Data = (uint8_t*)malloc((size_t)MAX_LOG_BUFFER_SIZE);
+    }
+    /********************************************************************************
+     * State control
+     *******************************************************************************/
     
     //TODO: LIVEMODE Ringbuffer initialization
     sDatalogger.sDatalogControl.sDataLogConfig = sDatalogConfig;
@@ -327,38 +374,47 @@ bool DatalogStop (void)
  ***********************************************************************************/
 void DatalogService (void)
 {
-    uint8_t i = 0;
+    uint8_t i;
     bool bAbort_flag = false;
+    bool tmp;
     tDATALOG_CHANNEL *pChannel = sDatalogger.sDatalogControl.sDatalogChannels;
+    uint8_t ui8ChannelsRunningTemp = sDatalogger.sDatalogControl.ui8ChannelsRunning;
+    uint32_t ui32CurrentOffset = 0;
 
     if (sDatalogger.eDatalogState != eDLOGSTATE_RUNNING)
         return;
 
-    // Alle Daten einspeichern
-    while (i < MAX_NUM_LOGS)
+    // Get all data
+    for (i = 0; i < MAX_NUM_LOGS; i++)
     {
+        if (!ui8ChannelsRunningTemp)
+            break;
+
         // Check if Channel is activated and running
         if (!(sDatalogger.sDatalogControl.ui8ChannelsRunning & (1 << i)))
             continue;
 
+        ui8ChannelsRunningTemp &= ~ (1 << i);
+
+        // Sample data
         if (!(--pChannel[i].ui16DivideCount))
         {
             if (sDatalogger.sDatalogControl.sDataLogConfig.eOpMode == eOPMODE_RECMODERAM) 
             {
                 // Fill buffer in big endian format
-                for(uint8_t j = 0; j < pChannel->ui8ByteCount; j++)
+                for(uint8_t j = 0; j < pChannel[i].ui8ByteCount; j++)
                 {
-                    sDatalogger.sDatalogControl.pui8Data[sDatalogger.sDatalogControl.ui32CurIdx++ + j] = 
-                        pChannel[i].pui8Variable[pChannel->ui8ByteCount - 1 - j];
+                    sDatalogger.sDatalogControl.pui8Data[pChannel[i].ui32MemoryOffset + (pChannel[i].ui32CurrentCount << (pChannel[i].ui8ByteCount >> 1)) + j] = 
+                        pChannel[i].pui8Variable[pChannel[i].ui8ByteCount - 1 - j];
                 }
             }
             else if (sDatalogger.sDatalogControl.sDataLogConfig.eOpMode == eOPMODE_RECMODEMEM)
             {
                 // Fill the appropirate arbitration buffer with data in big endian format
-                for(uint8_t j = 0; j < pChannel->ui8ByteCount; j++)
+                for(uint8_t j = 0; j < pChannel[i].ui8ByteCount; j++)
                 {
-                    pChannel[i].ui8RamBuf[pChannel[i].ui8BufNum][(pChannel[i].ui32CurrentCount << (pChannel->ui8ByteCount >> 1)) + j] = 
-                        pChannel[i].pui8Variable[pChannel->ui8ByteCount - 1 - j];
+                    pChannel[i].ui8RamBuf[pChannel[i].ui8BufNum][(pChannel[i].ui32CurrentCount << (pChannel[i].ui8ByteCount >> 1)) + j] = 
+                        pChannel[i].pui8Variable[pChannel[i].ui8ByteCount - 1 - j];
                 }
 
                 // Set flag to empty the currently used buffer
@@ -378,9 +434,8 @@ void DatalogService (void)
         }
     }
 
+    bAbort_flag = (sDatalogger.sDatalogControl.sDataLogConfig.ui8ActiveLoggers & sDatalogger.sDatalogControl.ui8ChannelsRunning) == 0;
     // If all channels reached their record length, switch off datalogger
-    bAbort_flag |= (bool)~(sDatalogger.sDatalogControl.sDataLogConfig.ui8ActiveLoggers & 
-                           sDatalogger.sDatalogControl.ui8ChannelsRunning);
 
     if (bAbort_flag)
         DatalogStop();
