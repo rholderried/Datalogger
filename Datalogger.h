@@ -44,6 +44,7 @@ typedef enum
     eDLOGSTATE_UNINITIALIZED            = 0,   /*!< New logs have been registered. Also POR value. */
     eDLOGSTATE_FORMAT_MEMORY,                  /*!< Writing Header into external memory */
     eDLOGSTATE_INITIALIZED,                    /*!< Datalogger ready to start, not running */
+    eDLOGSTATE_DATA_READY,                     /*!< Datalogger has been stopped, data is ready to retrieve*/
 
     eDLOGSTATE_RUNNING,
     eDLOGSTATE_ABORTING,
@@ -60,9 +61,12 @@ typedef enum
 {
     eDATALOG_ERROR_NONE                     = 0,
     eDATALOG_ERROR_WRONG_STATE              = 1,
-    eDATALOG_ERROR_LOG_NUMBER_INVALID       = 2,
-    eDATALOG_ERROR_NUMBER_OF_LOGS_EXCEEDED  = 3,
-    eDATALOG_ERROR_NOT_ENOUGH_MEMORY        = 4
+    eDATALOG_ERROR_WRONG_OPMODE             = 2,
+    eDATALOG_ERROR_LOG_NUMBER_INVALID       = 3,
+    eDATALOG_ERROR_NUMBER_OF_LOGS_EXCEEDED  = 4,
+    eDATALOG_ERROR_CHANNEL_NOT_ACTIVE       = 5,
+    eDATALOG_ERROR_NOT_ENOUGH_MEMORY        = 6,
+    eDATALOG_ERROR_NO_DATA                  = 7
 }tDATALOG_ERROR;
 
 /************************************************************************************
@@ -77,6 +81,7 @@ typedef enum
 typedef struct
 {
     // Channel config variables
+    uint32_t    ui32ChID;               /*!< Channel Identification variable.*/
     uint16_t    ui16Divider;            /*!< Frequency divider of this channel.*/
     uint32_t    ui32MemoryOffset;       /*!< Log buffer offset of the channel.*/
     uint32_t    ui32RecordLength;       /*!< Record length of the channel */
@@ -87,14 +92,14 @@ typedef struct
     // Channel state variables
     uint8_t     ui8BufNum;              /*!< Current buffer number*/
     uint16_t    ui16ValIdx;             /*!< Current buffer value index*/
-    uint32_t    ui32CurMemPos;          /*!<Current memory position*/
+    uint32_t    ui32CurMemPos;          /*!< Current memory position*/
     uint32_t    ui32CurrentCount;       /*!< Current record count*/
     uint16_t    ui16DivideCount;        /*!< Count for the frequency divider*/
     // RAM buffer for this channel
     uint8_t*    ui8RamBuf[2]; 
 }tDATALOG_CHANNEL;
 
-#define tDATALOG_CHANNEL_DEFAULTS {0, 0, 0, NULL, 0, 0, 0, 0, 0, 0, 1, {NULL}}
+#define tDATALOG_CHANNEL_DEFAULTS {0, 0, 0, 0, NULL, 0, 0, 0, 0, 0, 0, 1, {NULL}}
 // #define tDATALOG_CHANNEL_DEFAULTS {0}
 
 /** @brief Datalog control structure */
@@ -103,11 +108,12 @@ typedef struct
     tDATALOG_OPMODES    eOpMode;
     uint8_t             ui8ActiveLoggers;
     uint8_t             ui8ChannelsRunning;
+    uint32_t            ui32MemLen;
     uint8_t             *pui8Data;
     tDATALOG_CHANNEL    sDatalogChannels[MAX_NUM_LOGS];
 }tDATALOG_CONTROL;
 
-#define tDATALOG_CONTROL_DEFAULTS {eOPMODE_RECMODERAM, 0, 0, NULL, {tDATALOG_CHANNEL_DEFAULTS}}
+#define tDATALOG_CONTROL_DEFAULTS {eOPMODE_RECMODERAM, 0, 0, 0, NULL, {tDATALOG_CHANNEL_DEFAULTS}}
 // #define tDATALOG_CONTROL_DEFAULTS {0}
 
 /************************************************************************************
@@ -116,13 +122,14 @@ typedef struct
 /** @brief Log description header (Leading information for each log) */
 typedef struct
 {
+    uint32_t ui32ChannelID;     /*!< Channel Identification variable.*/
     uint16_t ui16Divider;       /*!< Timebase frequency divider*/
     uint32_t ui32MemoryOffset;  /*!< Offset address of the channel*/
     uint8_t *pui8Variable;      /*!< Memory address of the target variable.*/
     uint8_t  ui8ByteCount;      /*!< Byte count of the variable.*/
 }tDATALOG_CHANNEL_MEMORY;
 
-#define tDATALOG_CHANNEL_MEMORY_DEFAULTS {0, 0, NULL, 0}
+#define tDATALOG_CHANNEL_MEMORY_DEFAULTS {0, 0, 0, NULL, 0}
 // #define tDATALOG_CHANNEL_MEMORY_DEFAULTS {0}
 
 /** @brief Header for the data on an external storage medium */
@@ -210,14 +217,73 @@ typedef struct
 /************************************************************************************
  * Function declarations
  ***********************************************************************************/
+/********************************************************************************//**
+ * \brief Initializes the datalogger structure
+ ***********************************************************************************/
+void DataloggerInit(uint32_t ui32Frequency_Hz);
+
+/********************************************************************************//**
+ * \brief Resets the datalogger structure
+ ***********************************************************************************/
+tDATALOG_ERROR DataloggerReset(void);
+
+/********************************************************************************//**
+ * \brief API function to free formerly allocated memory
+ ***********************************************************************************/
+void DatalogClearMemory(void);
+
+/********************************************************************************//**
+ * \brief Returns a pointer to the usually hidden data structure
+ ***********************************************************************************/
 #ifdef UNITTEST
 tDATALOGGER* DatalogGetData(void);
 #endif
-// API functions
-tDATALOG_ERROR RegisterLog (uint8_t ui8LogNum, uint16_t ui16FreqDiv, uint32_t ui32RecLen, uint8_t *pui8Variable, uint8_t ui8ByteCount);
+
+/********************************************************************************//**
+ * \brief Return the current state of the 
+ ***********************************************************************************/
+tDATALOG_STATE DatalogGetCurrentState(void);
+
+/********************************************************************************//**
+ * \brief Return the current operation mode of the datalogger
+ ***********************************************************************************/
+tDATALOG_OPMODES DatalogGetCurrentOpMode(void);
+
+/********************************************************************************//**
+ * \brief Returns the current operation mode of the datalogger
+ * 
+ * @param pui8Data  Data pointer to be set to the top of the data memory.
+ * @param ui32Len   Pointer to the variable that shall hold the length of the log 
+ *                  data buffer.
+ ***********************************************************************************/
+tDATALOG_ERROR DatalogGetDataPtr(uint8_t** pui8Data, uint32_t ui32Len);
+
+/********************************************************************************//**
+ * \brief Returns information of the 
+ * 
+ * @param pChannel  Pointer to the data target.
+ * @param ui8ChNum  Channel number to request.
+ ***********************************************************************************/
+tDATALOG_ERROR DatalogGetChannelInfo(tDATALOG_CHANNEL *pChannel, uint8_t ui8ChNum);
+
+
+/********************************************************************************//**
+ * \brief This function registers a log into the data structure
+ *
+ * @param   ui32ChID        Identifier of the channel.
+ * @param   ui8LogNum       Log number 1 - LOG_NUM_MAX
+ * @param   ui16FreqDiv     Frequency divider, determines the sample time together with
+ *                          the time base frequency.
+ * @param   ui32RecLen      Length (items, not bytes) of the datalog.
+ * @param   pui8Variable    Pointer to the variable to log.
+ * @param   ui8ByteCount    Byte count of the variable.
+ * 
+ * @returns Error indicator
+ ***********************************************************************************/
+tDATALOG_ERROR RegisterLog (uint32_t ui32ChID, uint8_t ui8LogNum, uint16_t ui16FreqDiv, uint32_t ui32RecLen, uint8_t *pui8Variable, uint8_t ui8ByteCount);
 tDATALOG_ERROR DatalogInitialize (void);
 tDATALOG_ERROR DatalogStart (void);
-bool DatalogStop (void);
+tDATALOG_STATE DatalogStop (void);
 // Datalog service methods
 void DatalogService (void);
 void DatalogStatemachine (void);

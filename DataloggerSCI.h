@@ -27,9 +27,60 @@
 #error "The Datalogger SCI interface only supports VALUE_MODE_HEX at the moment"
 #endif
 
+#define SIZE_OF_RETURN_VAL_BUFFER   5
+
 /************************************************************************************
- * Type definitions
+ * Function declarations
  ***********************************************************************************/
+
+/********************************************************************************//**
+ * \brief Registers a log channel.
+ * 
+ * Callback of type COMMAND_CB (Refer to the SCI command structure definition)
+ ***********************************************************************************/
+COMMAND_CB_STATUS RegisterLogFromVarStruct (uint32_t* ui32ValArray, uint8_t ui8ValArrayLen, PROCESS_INFO *pInfo);
+
+/********************************************************************************//**
+ * \brief Initializes the control structure of the data logger.
+ * 
+ * Callback of type COMMAND_CB (Refer to the SCI command structure definition)
+ ***********************************************************************************/
+COMMAND_CB_STATUS InitializeDatalogger (uint32_t* ui32ValArray, uint8_t ui8ValArrayLen, PROCESS_INFO *pInfo);
+
+/********************************************************************************//**
+ * \brief Starts the data logger.
+ * 
+ * Callback of type COMMAND_CB (Refer to the SCI command structure definition)
+ ***********************************************************************************/
+COMMAND_CB_STATUS StartDatalogger (uint32_t* ui32ValArray, uint8_t ui8ValArrayLen, PROCESS_INFO *pInfo);
+
+/********************************************************************************//**
+ * \brief Stops the data logger.
+ * 
+ * Callback of type COMMAND_CB (Refer to the SCI command structure definition)
+ ***********************************************************************************/
+COMMAND_CB_STATUS StopDatalogger (uint32_t* ui32ValArray, uint8_t ui8ValArrayLen, PROCESS_INFO *pInfo);
+
+/********************************************************************************//**
+ * \brief Initializes the upstream for transferring the log data.
+ * 
+ * Callback of type COMMAND_CB (Refer to the SCI command structure definition)
+ ***********************************************************************************/
+COMMAND_CB_STATUS GetLogData (uint32_t* ui32ValArray, uint8_t ui8ValArrayLen, PROCESS_INFO *pInfo);
+
+/********************************************************************************//**
+ * \brief Returns the channel data.
+ * 
+ * Callback of type COMMAND_CB (Refer to the SCI command structure definition)
+ ***********************************************************************************/
+COMMAND_CB_STATUS GetChannelInfo (uint32_t* ui32ValArray, uint8_t ui8ValArrayLen, PROCESS_INFO *pInfo);
+
+/********************************************************************************//**
+ * \brief Resets the Datalogger.
+ * 
+ * Callback of type COMMAND_CB (Refer to the SCI command structure definition)
+ ***********************************************************************************/
+COMMAND_CB_STATUS ResetDatalogger (uint32_t* ui32ValArray, uint8_t ui8ValArrayLen, PROCESS_INFO *pInfo)
 
 #endif
 #endif //DATALOGGERSCI_H_
