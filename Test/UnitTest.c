@@ -7,7 +7,6 @@
 int main(void)
 {
     // tDATALOGGER inst = tDATALOGGER_DEFAULTS;
-    tDATALOG_CONFIG cfg = tDATALOG_CONFIG_DEFAULTS;
     tDATALOG_ERROR err = eDATALOG_ERROR_NONE;
     tDATALOGGER *p_inst = DatalogGetData();
     uint8_t ui8LogVar = 0;

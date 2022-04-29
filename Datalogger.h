@@ -66,7 +66,8 @@ typedef enum
     eDATALOG_ERROR_NUMBER_OF_LOGS_EXCEEDED  = 4,
     eDATALOG_ERROR_CHANNEL_NOT_ACTIVE       = 5,
     eDATALOG_ERROR_NOT_ENOUGH_MEMORY        = 6,
-    eDATALOG_ERROR_NO_DATA                  = 7
+    eDATALOG_ERROR_NO_DATA                  = 7,
+    eDATALOG_ERROR_NOT_IMPLEMENTED          = 8
 }tDATALOG_ERROR;
 
 /************************************************************************************
@@ -220,34 +221,41 @@ typedef struct
 /********************************************************************************//**
  * \brief Initializes the datalogger structure
  ***********************************************************************************/
-void DataloggerInit(uint32_t ui32Frequency_Hz);
+void Datalogger_Init(uint32_t ui32Frequency_Hz);
 
 /********************************************************************************//**
  * \brief Resets the datalogger structure
  ***********************************************************************************/
-tDATALOG_ERROR DataloggerReset(void);
+tDATALOG_ERROR Datalogger_Reset(void);
 
 /********************************************************************************//**
  * \brief API function to free formerly allocated memory
  ***********************************************************************************/
-void DatalogClearMemory(void);
+void Datalogger_ClearMemory(void);
 
 /********************************************************************************//**
  * \brief Returns a pointer to the usually hidden data structure
  ***********************************************************************************/
 #ifdef UNITTEST
-tDATALOGGER* DatalogGetData(void);
+tDATALOGGER* Datalogger_GetData(void);
 #endif
 
 /********************************************************************************//**
  * \brief Return the current state of the 
  ***********************************************************************************/
-tDATALOG_STATE DatalogGetCurrentState(void);
+tDATALOG_STATE Datalogger_GetCurrentState(void);
 
 /********************************************************************************//**
  * \brief Return the current operation mode of the datalogger
  ***********************************************************************************/
-tDATALOG_OPMODES DatalogGetCurrentOpMode(void);
+tDATALOG_OPMODES Datalogger_GetCurrentOpMode(void);
+
+/********************************************************************************//**
+ * \brief Sets the Datalogger to a new operation mode.
+ * 
+ * @param eNewOpMode    New operation mode to be set.
+ ***********************************************************************************/
+tDATALOG_ERROR Datalogger_SetOpMode(tDATALOG_OPMODES eNewOpMode);
 
 /********************************************************************************//**
  * \brief Returns the current operation mode of the datalogger
@@ -256,7 +264,7 @@ tDATALOG_OPMODES DatalogGetCurrentOpMode(void);
  * @param ui32Len   Pointer to the variable that shall hold the length of the log 
  *                  data buffer.
  ***********************************************************************************/
-tDATALOG_ERROR DatalogGetDataPtr(uint8_t** pui8Data, uint32_t ui32Len);
+tDATALOG_ERROR Datalogger_GetDataPtr(uint8_t** pui8Data, uint32_t *ui32Len);
 
 /********************************************************************************//**
  * \brief Returns information of the 
@@ -264,7 +272,7 @@ tDATALOG_ERROR DatalogGetDataPtr(uint8_t** pui8Data, uint32_t ui32Len);
  * @param pChannel  Pointer to the data target.
  * @param ui8ChNum  Channel number to request.
  ***********************************************************************************/
-tDATALOG_ERROR DatalogGetChannelInfo(tDATALOG_CHANNEL *pChannel, uint8_t ui8ChNum);
+tDATALOG_ERROR Datalogger_GetChannelInfo(tDATALOG_CHANNEL *pChannel, uint8_t ui8ChNum);
 
 
 /********************************************************************************//**
@@ -280,16 +288,17 @@ tDATALOG_ERROR DatalogGetChannelInfo(tDATALOG_CHANNEL *pChannel, uint8_t ui8ChNu
  * 
  * @returns Error indicator
  ***********************************************************************************/
-tDATALOG_ERROR RegisterLog (uint32_t ui32ChID, uint8_t ui8LogNum, uint16_t ui16FreqDiv, uint32_t ui32RecLen, uint8_t *pui8Variable, uint8_t ui8ByteCount);
-tDATALOG_ERROR DatalogInitialize (void);
-tDATALOG_ERROR DatalogStart (void);
-tDATALOG_STATE DatalogStop (void);
+tDATALOG_ERROR Datalogger_RegisterLog (uint32_t ui32ChID, uint8_t ui8LogNum, uint16_t ui16FreqDiv, uint32_t ui32RecLen, uint8_t *pui8Variable, uint8_t ui8ByteCount);
+tDATALOG_ERROR Datalogger_RemoveLog (uint8_t ui8LogNum);
+tDATALOG_ERROR Datalogger_InitLogger (bool bFreeMemory);
+tDATALOG_ERROR Datalogger_Start (void);
+tDATALOG_STATE Datalogger_Stop (void);
 // Datalog service methods
-void DatalogService (void);
-void DatalogStatemachine (void);
+void Datalogger_Service (void);
+void Datalogger_Statemachine (void);
 // Internal functions
-static void DatalogSetState (void);
-static void DatalogSetStateImmediate (tDATALOG_STATE eNewState);
+static void Datalogger_SetState (void);
+static void Datalogger_SetStateImmediate (tDATALOG_STATE eNewState);
 
 
 /* extern bool LiveModeDatalogStart (uint8_t ui8Var_count, uint16_t* pui16Var_nr, uint16_t pui16Divider); */

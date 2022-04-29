@@ -35,7 +35,7 @@ static tDATALOGGER sDatalogger = tDATALOGGER_DEFAULTS;
 /************************************************************************************
  * Function definitions
  ***********************************************************************************/
-void DataloggerInit(uint32_t ui32Frequency_Hz)
+void Datalogger_Init(uint32_t ui32Frequency_Hz)
 {
     tDATALOGGER sTemp = tDATALOGGER_DEFAULTS;
 
@@ -45,7 +45,7 @@ void DataloggerInit(uint32_t ui32Frequency_Hz)
 }
 
 //===================================================================================
-tDATALOG_ERROR DataloggerReset(void)
+tDATALOG_ERROR Datalogger_Reset(void)
 {
     tDATALOGGER sTemp = tDATALOGGER_DEFAULTS;
 
@@ -70,7 +70,7 @@ tDATALOG_ERROR DataloggerReset(void)
 
 //===================================================================================
 #ifdef UNITTEST
-tDATALOGGER* DatalogGetData(void)
+tDATALOGGER* Datalogger_GetData(void)
 {
     return &sDatalogger;
 }
@@ -101,25 +101,60 @@ void _DatalogClearMemory (void)
 }
 
 //===================================================================================
-void DatalogClearMemory(void)
+void Datalogger_ClearMemory(void)
 {
     _DatalogClearMemory();
 }
 
 //===================================================================================
-tDATALOG_STATE DatalogGetCurrentState(void)
+tDATALOG_STATE Datalogger_GetCurrentState(void)
 {
     return sDatalogger.eDatalogState;
 }
 
 //===================================================================================
-tDATALOG_OPMODES DatalogGetCurrentOpMode(void)
+tDATALOG_OPMODES Datalogger_GetCurrentOpMode(void)
 {
     return sDatalogger.sDatalogControl.eOpMode;
 }
 
 //===================================================================================
-tDATALOG_ERROR DatalogGetData(uint8_t** pui8Data, uint32_t *ui32Len)
+tDATALOG_ERROR Datalogger_SetOpMode(tDATALOG_OPMODES eNewOpMode)
+{
+    // Check if datalogger tasks are going on
+    switch(sDatalogger.eDatalogState)
+    {
+        case eDLOGSTATE_RUNNING:
+        case eDLOGSTATE_FORMAT_MEMORY:
+        case eDLOGSTATE_ABORTING:
+            return eDATALOG_ERROR_WRONG_STATE;
+        
+        default:
+            break;
+    }
+
+    // Check new operation mode
+    switch(eNewOpMode)
+    {
+        case eOPMODE_LIVE:
+            return eDATALOG_ERROR_NOT_IMPLEMENTED;
+
+        case eOPMODE_RECMODEMEM:
+            return eDATALOG_ERROR_NOT_IMPLEMENTED;
+
+        case eOPMODE_RECMODERAM:
+            break;
+
+        default:
+            return eDATALOG_ERROR_NOT_IMPLEMENTED;
+    }
+
+    sDatalogger.sDatalogControl.eOpMode = eNewOpMode;
+    Datalogger_SetStateImmediate(eDLOGSTATE_UNINITIALIZED);
+}
+
+//===================================================================================
+tDATALOG_ERROR Datalogger_GetDataPtr(uint8_t** pui8Data, uint32_t *ui32Len)
 {
     // Data must be available
     if (sDatalogger.eDatalogState != eDLOGSTATE_DATA_READY)
@@ -136,7 +171,7 @@ tDATALOG_ERROR DatalogGetData(uint8_t** pui8Data, uint32_t *ui32Len)
 }
 
 //===================================================================================
-tDATALOG_ERROR DatalogGetChannelInfo(tDATALOG_CHANNEL *pChannel, uint8_t ui8ChNum)
+tDATALOG_ERROR Datalogger_GetChannelInfo(tDATALOG_CHANNEL *pChannel, uint8_t ui8ChNum)
 {
     if (ui8ChNum > MAX_NUM_LOGS)
         return eDATALOG_ERROR_NUMBER_OF_LOGS_EXCEEDED;
@@ -149,8 +184,8 @@ tDATALOG_ERROR DatalogGetChannelInfo(tDATALOG_CHANNEL *pChannel, uint8_t ui8ChNu
     return eDATALOG_ERROR_NONE;
 }
 
-
-tDATALOG_ERROR RegisterLog (uint32_t ui32ChID, uint8_t ui8LogNum, uint16_t ui16FreqDiv, uint32_t ui32RecLen, uint8_t *pui8Variable, uint8_t ui8ByteCount)
+//===================================================================================
+tDATALOG_ERROR Datalogger_RegisterLog (uint32_t ui32ChID, uint8_t ui8LogNum, uint16_t ui16FreqDiv, uint32_t ui32RecLen, uint8_t *pui8Variable, uint8_t ui8ByteCount)
 {
     tDATALOG_CHANNEL        *pChannel; 
     tDATALOG_CHANNEL_MEMORY *pMemChannel;
@@ -182,6 +217,23 @@ tDATALOG_ERROR RegisterLog (uint32_t ui32ChID, uint8_t ui8LogNum, uint16_t ui16F
 }
 
 //===================================================================================
+tDATALOG_ERROR Datalogger_RemoveLog (uint8_t ui8LogNum)
+{
+    if (ui8LogNum > MAX_NUM_LOGS)
+        return eDATALOG_ERROR_LOG_NUMBER_INVALID;
+
+    if (!(sDatalogger.sDatalogControl.ui8ActiveLoggers & (1 << (ui8LogNum - 1)) ))
+        return eDATALOG_ERROR_CHANNEL_NOT_ACTIVE;
+
+    sDatalogger.sDatalogControl.ui8ActiveLoggers &= ~(1 << (ui8LogNum - 1));
+
+    DatalogSetStateImmediate(eDLOGSTATE_UNINITIALIZED);
+
+    // Reinitialize the logger
+    return eDATALOG_ERROR_NONE;
+}
+
+//===================================================================================
 // Function: DatalogInitialize
 //===================================================================================
 /********************************************************************************//**
@@ -193,7 +245,7 @@ tDATALOG_ERROR RegisterLog (uint32_t ui32ChID, uint8_t ui8LogNum, uint16_t ui16F
  * @param   sDatalogConfig Desired configuration of the datalogger.
  * @returns Error indicator
  ***********************************************************************************/
-tDATALOG_ERROR DatalogInitialize (void)
+tDATALOG_ERROR Datalogger_InitLogger (bool bFreeMemory)
 {
     uint8_t     i = 0;
     uint8_t     ui8LogCount = 0;
@@ -210,7 +262,9 @@ tDATALOG_ERROR DatalogInitialize (void)
     /********************************************************************************
      * Free former memory allocation
      *******************************************************************************/
-    _DatalogClearMemory();
+
+    if (bFreeMemory)
+        _DatalogClearMemory();
 
     // Preinitialize Datalog structure
     for(i = 0; i < MAX_NUM_LOGS; i++)
@@ -354,7 +408,7 @@ tDATALOG_ERROR DatalogInitialize (void)
  *
  * @returns Error indicator
  ***********************************************************************************/
-tDATALOG_ERROR DatalogStart (void)
+tDATALOG_ERROR Datalogger_Start (void)
 {
     uint8_t i = 0;
     tDATALOG_CHANNEL* pChannel = sDatalogger.sDatalogControl.sDatalogChannels;
@@ -413,7 +467,7 @@ tDATALOG_ERROR DatalogStart (void)
  *
  * @returns Error indicator
  ***********************************************************************************/
-tDATALOG_STATE DatalogStop (void)
+tDATALOG_STATE Datalogger_Stop (void)
 {
     if (sDatalogger.eDatalogState != eDLOGSTATE_RUNNING)
         return eDATALOG_ERROR_WRONG_STATE;
@@ -431,7 +485,7 @@ tDATALOG_STATE DatalogStop (void)
  *
  * This routine must get called regularly with a defined time base.
  ***********************************************************************************/
-void DatalogService (void)
+void Datalogger_Service (void)
 {
     uint8_t i;
     bool bAbort_flag = false;
@@ -715,7 +769,7 @@ void DatalogService (void)
  *
  * @returns Error indicator
  ***********************************************************************************/
-void DatalogStatemachine (void)
+void Datalogger_Statemachine (void)
 {
     //tROBLOG_ERROR eErrorIndicator = eROBLOG_ERROR_NONE;
     tDATALOG_STATE eNewState = sDatalogger.eDatalogState;
@@ -943,7 +997,7 @@ void DatalogStatemachine (void)
  *
  * Handles the state transitions from one state to another. 
  ***********************************************************************************/
-static void DatalogSetState()
+static void Datalogger_SetState()
 {
     bool successFlag = false;
 
@@ -997,7 +1051,7 @@ static void DatalogSetState()
  * \brief Set a new datalogger state immediately without handling any state
  * transitions. 
  ***********************************************************************************/
-void DatalogSetStateImmediate (tDATALOG_STATE eNewState)
+void Datalogger_SetStateImmediate (tDATALOG_STATE eNewState)
 {
     sDatalogger.eDatalogState = eNewState;
 }
