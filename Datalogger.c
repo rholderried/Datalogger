@@ -151,6 +151,8 @@ tDATALOG_ERROR Datalogger_SetOpMode(tDATALOG_OPMODES eNewOpMode)
 
     sDatalogger.sDatalogControl.eOpMode = eNewOpMode;
     Datalogger_SetStateImmediate(eDLOGSTATE_UNINITIALIZED);
+
+    return eDATALOG_ERROR_NONE;
 }
 
 //===================================================================================
@@ -466,7 +468,7 @@ tDATALOG_ERROR Datalogger_Start (void)
 }
 
 //===================================================================================
-// Function: DatalogStop
+// Function: Datalogger_Stop
 //===================================================================================
 /********************************************************************************//**
  * \brief Stops the datalogger
@@ -495,10 +497,10 @@ void Datalogger_Service (void)
 {
     uint8_t i;
     bool bAbort_flag = false;
-    bool tmp;
+    // bool tmp;
     tDATALOG_CHANNEL *pChannel = sDatalogger.sDatalogControl.sDatalogChannels;
     uint8_t ui8ChannelsRunningTemp = sDatalogger.sDatalogControl.ui8ChannelsRunning;
-    uint32_t ui32CurrentOffset = 0;
+    // uint32_t ui32CurrentOffset = 0;
 
     if (sDatalogger.eDatalogState != eDLOGSTATE_RUNNING)
         return;
@@ -557,7 +559,7 @@ void Datalogger_Service (void)
     // If all channels reached their record length, switch off datalogger
 
     if (bAbort_flag)
-        DatalogStop();
+        Datalogger_Stop();
 }
 
 //===================================================================================
@@ -991,7 +993,7 @@ void Datalogger_Statemachine (void)
     default:
         break;
     }
-    DatalogSetState();
+    Datalogger_SetState();
     
 }
 
@@ -1003,7 +1005,7 @@ void Datalogger_Statemachine (void)
  *
  * Handles the state transitions from one state to another. 
  ***********************************************************************************/
-static void Datalogger_SetState()
+void Datalogger_SetState()
 {
     bool successFlag = false;
 
