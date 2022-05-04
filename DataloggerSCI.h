@@ -85,7 +85,7 @@ COMMAND_CB_STATUS GetChannelInfo (uint32_t* ui32ValArray, uint8_t ui8ValArrayLen
  * 
  * Callback of type COMMAND_CB (Refer to the SCI command structure definition)
  ***********************************************************************************/
-COMMAND_CB_STATUS ResetDatalogger (uint32_t* ui32ValArray, uint8_t ui8ValArrayLen, PROCESS_INFO *pInfo)
+COMMAND_CB_STATUS ResetDatalogger (uint32_t* ui32ValArray, uint8_t ui8ValArrayLen, PROCESS_INFO *pInfo);
 
 #endif
 #endif //DATALOGGERSCI_H_
