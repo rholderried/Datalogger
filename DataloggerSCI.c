@@ -42,7 +42,7 @@ COMMAND_CB_STATUS GetDataloggerVersion (uint32_t* ui32ValArray, uint8_t ui8ValAr
     ui32ReturnValBuffer[0] = sVer.ui8VersionMajor;
     ui32ReturnValBuffer[1] = sVer.ui8VersionMinor;
     ui32ReturnValBuffer[2] = sVer.ui8Revision;
-    pInfo->pui32_dataBuf = &ui32ReturnValBuffer;
+    pInfo->pui32_dataBuf = ui32ReturnValBuffer;
 
     return eCOMMAND_STATUS_SUCCESS_DATA;
 }
@@ -165,7 +165,7 @@ COMMAND_CB_STATUS GetChannelInfo (uint32_t* ui32ValArray, uint8_t ui8ValArrayLen
         ui32ReturnValBuffer[2] = sChInfo.ui32RecordLength;
         ui32ReturnValBuffer[3] = sChInfo.ui32CurrentCount;
         ui32ReturnValBuffer[4] = sChInfo.ui32MemoryOffset;
-        pInfo->pui32_dataBuf = &ui32ReturnValBuffer;
+        pInfo->pui32_dataBuf = ui32ReturnValBuffer;
         pInfo->ui32_datLen = 5;
 
         return eCOMMAND_STATUS_SUCCESS_DATA;
