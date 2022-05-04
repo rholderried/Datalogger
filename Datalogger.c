@@ -185,6 +185,12 @@ tDATALOG_ERROR Datalogger_GetChannelInfo(tDATALOG_CHANNEL *pChannel, uint8_t ui8
 }
 
 //===================================================================================
+tDATALOGGER_VERSION Datalogger_GetVersion(void)
+{
+    return sDatalogger.sVersion;
+}
+
+//===================================================================================
 tDATALOG_ERROR Datalogger_RegisterLog (uint32_t ui32ChID, uint8_t ui8LogNum, uint16_t ui16FreqDiv, uint32_t ui32RecLen, uint8_t *pui8Variable, uint8_t ui8ByteCount)
 {
     tDATALOG_CHANNEL        *pChannel; 

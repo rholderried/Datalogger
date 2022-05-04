@@ -19,6 +19,10 @@
 /************************************************************************************
  * Defines
  ***********************************************************************************/
+#define DATALOGGER_VERSION_MAJOR    0
+#define DATALOGGER_VERSION_MINOR    5
+#define DATALOGGER_REVISION         0
+
 #define MEMORY_HEADER_SIZE()       (sizeof(tDATALOG_MEMORY_HEADER))
 #define MAX_NUM_LOGS                8
 #define ARBITRATION_BUFFER_SIZE     20
@@ -73,6 +77,13 @@ typedef enum
 /************************************************************************************
  * Structure type definitions
  ***********************************************************************************/
+/** @brief Datalogger version data structure */
+typedef struct
+{
+    uint8_t ui8VersionMajor;
+    uint8_t ui8VersionMinor;
+    uint8_t ui8Revision;
+}tDATALOGGER_VERSION;
 
 /************************************************************************************
  * Datalog control data
@@ -194,6 +205,7 @@ typedef struct
 // Main data struct of the datalogger
 typedef struct
 {
+    tDATALOGGER_VERSION             sVersion;
     // Datalog-Parameter
     uint32_t                        ui32TimeBase_Hz;
 
@@ -206,6 +218,7 @@ typedef struct
 }tDATALOGGER;
 
 #define tDATALOGGER_DEFAULTS {\
+    {DATALOGGER_VERSION_MAJOR, DATALOGGER_VERSION_MINOR, DATALOGGER_REVISION},\
     0,\
     eDLOGSTATE_UNINITIALIZED, \
     eDLOGSTATE_UNINITIALIZED, \
@@ -273,6 +286,11 @@ tDATALOG_ERROR Datalogger_GetDataPtr(uint8_t** pui8Data, uint32_t *ui32Len);
  * @param ui8ChNum  Channel number to request.
  ***********************************************************************************/
 tDATALOG_ERROR Datalogger_GetChannelInfo(tDATALOG_CHANNEL *pChannel, uint8_t ui8ChNum);
+
+/********************************************************************************//**
+ * \brief Returns the datalogger version structure
+ ***********************************************************************************/
+tDATALOGGER_VERSION Datalogger_GetVersion(void);
 
 
 /********************************************************************************//**
