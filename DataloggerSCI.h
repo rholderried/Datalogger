@@ -11,7 +11,6 @@
 #ifndef DATALOGGERSCI_H_
 #define DATALOGGERSCI_H_
 
-#define SCI
 #ifdef SCI
 /************************************************************************************
  * Includes
