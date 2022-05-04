@@ -315,8 +315,8 @@ tDATALOG_STATE Datalogger_Stop (void);
 void Datalogger_Service (void);
 void Datalogger_Statemachine (void);
 // Internal functions
-static void Datalogger_SetState (void);
-static void Datalogger_SetStateImmediate (tDATALOG_STATE eNewState);
+void Datalogger_SetState (void);
+void Datalogger_SetStateImmediate (tDATALOG_STATE eNewState);
 
 
 /* extern bool LiveModeDatalogStart (uint8_t ui8Var_count, uint16_t* pui16Var_nr, uint16_t pui16Divider); */

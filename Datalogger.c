@@ -217,7 +217,7 @@ tDATALOG_ERROR Datalogger_RegisterLog (uint32_t ui32ChID, uint8_t ui8LogNum, uin
     sDatalogger.sDatalogControl.ui8ActiveLoggers |= (1 << (ui8LogNum - 1));
 
     // New value is set -> Need to initialize the datalogger prior to next log run.
-    DatalogSetStateImmediate(eDLOGSTATE_UNINITIALIZED);
+    Datalogger_SetStateImmediate(eDLOGSTATE_UNINITIALIZED);
 
     return eDATALOG_ERROR_NONE;
 }
@@ -233,7 +233,7 @@ tDATALOG_ERROR Datalogger_RemoveLog (uint8_t ui8LogNum)
 
     sDatalogger.sDatalogControl.ui8ActiveLoggers &= ~(1 << (ui8LogNum - 1));
 
-    DatalogSetStateImmediate(eDLOGSTATE_UNINITIALIZED);
+    Datalogger_SetStateImmediate(eDLOGSTATE_UNINITIALIZED);
 
     // Reinitialize the logger
     return eDATALOG_ERROR_NONE;
@@ -356,12 +356,12 @@ tDATALOG_ERROR Datalogger_InitLogger (bool bFreeMemory)
 
     if (sDatalogger.sDatalogControl.eOpMode != eOPMODE_RECMODEMEM)
     {
-        DatalogSetStateImmediate(eDLOGSTATE_INITIALIZED);
+        Datalogger_SetStateImmediate(eDLOGSTATE_INITIALIZED);
         // sDatalogger.eDatalogStatePending = eDLOGSTATE_INITIALIZED;
     }
     else 
     {
-        DatalogSetStateImmediate(eDLOGSTATE_FORMAT_MEMORY);
+        Datalogger_SetStateImmediate(eDLOGSTATE_FORMAT_MEMORY);
         // sDatalogger.eDatalogStatePending = eDLOGSTATE_FORMAT_MEMORY;
     }
 
@@ -460,7 +460,7 @@ tDATALOG_ERROR Datalogger_Start (void)
         sDatalogger.sDatalogControl.ui8ActiveLoggers;
 
     // Switch the datalog on (directly, because this is time critical)
-    DatalogSetStateImmediate(eDLOGSTATE_RUNNING);
+    Datalogger_SetStateImmediate(eDLOGSTATE_RUNNING);
 
     return eDATALOG_ERROR_NONE;
 }
@@ -478,7 +478,7 @@ tDATALOG_STATE Datalogger_Stop (void)
     if (sDatalogger.eDatalogState != eDLOGSTATE_RUNNING)
         return eDATALOG_ERROR_WRONG_STATE;
 
-    DatalogSetStateImmediate(eDLOGSTATE_ABORTING);
+    Datalogger_SetStateImmediate(eDLOGSTATE_ABORTING);
 
     // Arbitration-count definiert auf 0 setzen
     sDatalogger.sDatalogSerializer.ui8ArbitrationCount = 0;
