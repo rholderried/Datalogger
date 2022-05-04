@@ -780,7 +780,7 @@ void Datalogger_Service (void)
 void Datalogger_Statemachine (void)
 {
     //tROBLOG_ERROR eErrorIndicator = eROBLOG_ERROR_NONE;
-    tDATALOG_STATE eNewState = sDatalogger.eDatalogState;
+    // tDATALOG_STATE eNewState = sDatalogger.eDatalogState;
     /* uint16_t ui16Data_size; */
     /* uint16_t ui16End_index; */
     /* uint16_t ui16RAM_buffer_offset; */

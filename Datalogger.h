@@ -168,7 +168,7 @@ typedef struct
     uint8_t     ui8RetrieveFlags;
 }tDATALOG_RECMODEMEM_SERIALIZER;
 
-#define tDATALOG_RECMODEMEM_SERIALIIZER_DEFAULTS {0}
+#define tDATALOG_RECMODEMEM_SERIALIIZER_DEFAULTS {{0}, 0, 0, 0, 0}
 
 /* typedef struct */
 /* { */
