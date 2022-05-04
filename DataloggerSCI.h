@@ -32,6 +32,12 @@
 /************************************************************************************
  * Function declarations
  ***********************************************************************************/
+/********************************************************************************//**
+ * \brief Returns the version values of the datalogger module.
+ * 
+ * Callback of type COMMAND_CB (Refer to the SCI command structure definition)
+ ***********************************************************************************/
+COMMAND_CB_STATUS GetDataloggerVersion (uint32_t* ui32ValArray, uint8_t ui8ValArrayLen, PROCESS_INFO *pInfo);
 
 /********************************************************************************//**
  * \brief Registers a log channel.

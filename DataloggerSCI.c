@@ -35,6 +35,20 @@ uint32_t ui32ReturnValBuffer[SIZE_OF_RETURN_VAL_BUFFER];
 /************************************************************************************
  * Function definitions
  ***********************************************************************************/
+COMMAND_CB_STATUS GetDataloggerVersion (uint32_t* ui32ValArray, uint8_t ui8ValArrayLen, PROCESS_INFO *pInfo)
+{
+    tDATALOGGER_VERSION sVer = Datalogger_GetVersion();
+
+    pInfo->ui32_datLen = 3;
+    ui32ReturnValBuffer[0] = sVer.ui8VersionMajor;
+    ui32ReturnValBuffer[1] = sVer.ui8VersionMinor;
+    ui32ReturnValBuffer[2] = sVer.ui8Revision;
+    pInfo->pui32_dataBuf = &ui32ReturnValBuffer;
+
+    return eCOMMAND_STATUS_SUCCESS_DATA;
+}
+
+//=============================================================================
 COMMAND_CB_STATUS RegisterLogFromVarStruct (uint32_t* ui32ValArray, uint8_t ui8ValArrayLen, PROCESS_INFO *pInfo)
 {
     // Take over the arguments
