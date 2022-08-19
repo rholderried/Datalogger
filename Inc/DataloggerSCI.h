@@ -11,7 +11,6 @@
 #ifndef DATALOGGERSCI_H_
 #define DATALOGGERSCI_H_
 
-#ifdef SCI
 /************************************************************************************
  * Includes
  ***********************************************************************************/
@@ -19,6 +18,7 @@
 #include <stdbool.h>
 #include "SCI.h"
 
+#ifdef SCI
 /************************************************************************************
  * Defines
  ***********************************************************************************/
@@ -39,11 +39,25 @@
 COMMAND_CB_STATUS GetDataloggerVersion (uint32_t* ui32ValArray, uint8_t ui8ValArrayLen, PROCESS_INFO *pInfo);
 
 /********************************************************************************//**
+ * \brief Sets the desired operation mode of the data logger.
+ * 
+ * Callback of type COMMAND_CB (Refer to the SCI command structure definition)
+ ***********************************************************************************/
+COMMAND_CB_STATUS SetOpMode (uint32_t* ui32ValArray, uint8_t ui8ValArrayLen, PROCESS_INFO *pInfo);
+
+/********************************************************************************//**
  * \brief Registers a log channel.
  * 
  * Callback of type COMMAND_CB (Refer to the SCI command structure definition)
  ***********************************************************************************/
 COMMAND_CB_STATUS RegisterLogFromVarStruct (uint32_t* ui32ValArray, uint8_t ui8ValArrayLen, PROCESS_INFO *pInfo);
+
+/********************************************************************************//**
+ * \brief Removes one registered channel.
+ * 
+ * Callback of type COMMAND_CB (Refer to the SCI command structure definition)
+ ***********************************************************************************/
+COMMAND_CB_STATUS RemoveLog (uint32_t* ui32ValArray, uint8_t ui8ValArrayLen, PROCESS_INFO *pInfo);
 
 /********************************************************************************//**
  * \brief Initializes the control structure of the data logger.

@@ -16,17 +16,12 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
-#include "DataloggerConfig.h"
+#include "DataloggerCfg.h"
 #include "Datalogger.h"
 
 /************************************************************************************
  * Defines
  ***********************************************************************************/
-
-/************************************************************************************
- * State variable
- ***********************************************************************************/
-static tDATALOGGER sDatalogger = tDATALOGGER_DEFAULTS;
 
 /************************************************************************************
  * Globals
@@ -35,22 +30,18 @@ static tDATALOGGER sDatalogger = tDATALOGGER_DEFAULTS;
 /************************************************************************************
  * Function definitions
  ***********************************************************************************/
-void Datalogger_Init(uint32_t ui32Frequency_Hz)
+void DataloggerInit(tDATALOGGER *psDatalog, tDATALOGGER_CALLBACKS sCallbacks)
 {
-    tDATALOGGER sTemp = tDATALOGGER_DEFAULTS;
-
-    sTemp.ui32TimeBase_Hz = ui32Frequency_Hz;
-
-    memcpy(&sDatalogger, &sTemp, sizeof(tDATALOGGER));
+    psDatalog->sCallbacks = sCallbacks;
 }
 
 //===================================================================================
-tDATALOG_ERROR Datalogger_Reset(void)
+tDATALOG_ERROR DataloggerReset(tDATALOGGER *psDatalog)
 {
     tDATALOGGER sTemp = tDATALOGGER_DEFAULTS;
 
     // Check if datalogger tasks are going on
-    switch(sDatalogger.eDatalogState)
+    switch(psDatalog->eDatalogState)
     {
         case eDLOGSTATE_RUNNING:
         case eDLOGSTATE_FORMAT_MEMORY:
@@ -61,68 +52,70 @@ tDATALOG_ERROR Datalogger_Reset(void)
             break;
     }
 
-    sTemp.ui32TimeBase_Hz = sDatalogger.ui32TimeBase_Hz;
+    // Preserve the parameters and the callbacks
+    sTemp.sNVPar = psDatalog->sNVPar;
+    sTemp.sCallbacks = psDatalog->sCallbacks;
 
-    memcpy(&sDatalogger, &sTemp, sizeof(tDATALOGGER));
+    memcpy(psDatalog, &sTemp, sizeof(tDATALOGGER));
 
     return eDATALOG_ERROR_NONE;
 }
 
 //===================================================================================
 #ifdef UNITTEST
-tDATALOGGER* Datalogger_GetData(void)
+tDATALOGGER* DataloggerGetData(tDATALOGGER *psDatalog,)
 {
-    return &sDatalogger;
+    return psDatalog;
 }
 #endif
 
 //===================================================================================
-void _DatalogClearMemory (void)
+void _DataloggerClearMemory (tDATALOGGER *psDatalog)
 {
     // If memory has been already allocated, free these memory portions
     for (uint8_t i = 0; i < MAX_NUM_LOGS; i++)
     {
-        if (!sDatalogger.sDatalogControl.ui8ActiveLoggers)
+        if (!psDatalog->sDatalogControl.ui8ActiveLoggers)
             break;
 
-        if (sDatalogger.sDatalogControl.ui8ActiveLoggers & (1 << i))
+        if (psDatalog->sDatalogControl.ui8ActiveLoggers & (1 << i))
         {
-            if (sDatalogger.sDatalogControl.eOpMode == eOPMODE_RECMODERAM)
-                free(sDatalogger.sDatalogControl.pui8Data);
-            else if(sDatalogger.sDatalogControl.eOpMode == eOPMODE_RECMODEMEM)
+            if (psDatalog->sDatalogControl.eOpMode == eOPMODE_RECMODERAM)
+                free(psDatalog->sDatalogControl.pui8Data);
+            else if(psDatalog->sDatalogControl.eOpMode == eOPMODE_RECMODEMEM)
             {
-                free(sDatalogger.sDatalogControl.sDatalogChannels[i].ui8RamBuf[0]);
-                free(sDatalogger.sDatalogControl.sDatalogChannels[i].ui8RamBuf[1]);
+                free(psDatalog->sDatalogControl.sDatalogChannels[i].ui8RamBuf[0]);
+                free(psDatalog->sDatalogControl.sDatalogChannels[i].ui8RamBuf[1]);
             }
-            sDatalogger.sDatalogControl.ui8ActiveLoggers &= ~(1 << i);
+            psDatalog->sDatalogControl.ui8ActiveLoggers &= ~(1 << i);
         }
     i++;
     }   
 }
 
 //===================================================================================
-void Datalogger_ClearMemory(void)
+void DataloggerClearMemory(tDATALOGGER *psDatalog)
 {
-    _DatalogClearMemory();
+    _DataloggerClearMemory(psDatalog);
 }
 
 //===================================================================================
-tDATALOG_STATE Datalogger_GetCurrentState(void)
+tDATALOG_STATE DataloggerGetCurrentState(tDATALOGGER *psDatalog)
 {
-    return sDatalogger.eDatalogState;
+    return psDatalog->eDatalogState;
 }
 
 //===================================================================================
-tDATALOG_OPMODES Datalogger_GetCurrentOpMode(void)
+tDATALOG_OPMODES DataloggerGetCurrentOpMode(tDATALOGGER *psDatalog)
 {
-    return sDatalogger.sDatalogControl.eOpMode;
+    return psDatalog->sDatalogControl.eOpMode;
 }
 
 //===================================================================================
-tDATALOG_ERROR Datalogger_SetOpMode(tDATALOG_OPMODES eNewOpMode)
+tDATALOG_ERROR DataloggerSetOpMode(tDATALOGGER *psDatalog, tDATALOG_OPMODES eNewOpMode)
 {
     // Check if datalogger tasks are going on
-    switch(sDatalogger.eDatalogState)
+    switch(psDatalog->eDatalogState)
     {
         case eDLOGSTATE_RUNNING:
         case eDLOGSTATE_FORMAT_MEMORY:
@@ -149,51 +142,51 @@ tDATALOG_ERROR Datalogger_SetOpMode(tDATALOG_OPMODES eNewOpMode)
             return eDATALOG_ERROR_NOT_IMPLEMENTED;
     }
 
-    sDatalogger.sDatalogControl.eOpMode = eNewOpMode;
-    Datalogger_SetStateImmediate(eDLOGSTATE_UNINITIALIZED);
+    psDatalog->sDatalogControl.eOpMode = eNewOpMode;
+    DataloggerSetStateImmediate(psDatalog, eDLOGSTATE_UNINITIALIZED);
 
     return eDATALOG_ERROR_NONE;
 }
 
 //===================================================================================
-tDATALOG_ERROR Datalogger_GetDataPtr(uint8_t** pui8Data, uint32_t *ui32Len)
+tDATALOG_ERROR DataloggerGetDataPtr(tDATALOGGER *psDatalog, uint8_t** pui8Data, uint32_t *ui32Len)
 {
     // Data must be available
-    if (sDatalogger.eDatalogState != eDLOGSTATE_DATA_READY)
+    if (psDatalog->eDatalogState != eDLOGSTATE_DATA_READY)
         return eDATALOG_ERROR_WRONG_STATE;
 
     // Memory mode datalogger cannot be read out directly
-    if (sDatalogger.sDatalogControl.eOpMode == eOPMODE_RECMODEMEM)
+    if (psDatalog->sDatalogControl.eOpMode == eOPMODE_RECMODEMEM)
         return eDATALOG_ERROR_WRONG_OPMODE;
 
-    *pui8Data = sDatalogger.sDatalogControl.pui8Data;
-    *ui32Len = sDatalogger.sDatalogControl.ui32MemLen;
+    *pui8Data = psDatalog->sDatalogControl.pui8Data;
+    *ui32Len = psDatalog->sDatalogControl.ui32MemLen;
 
     return eDATALOG_ERROR_NONE;
 }
 
 //===================================================================================
-tDATALOG_ERROR Datalogger_GetChannelInfo(tDATALOG_CHANNEL *pChannel, uint8_t ui8ChNum)
+tDATALOG_ERROR DataloggerGetChannelInfo(tDATALOGGER *psDatalog, tDATALOG_CHANNEL *pChannel, uint8_t ui8ChNum)
 {
     if (ui8ChNum > MAX_NUM_LOGS)
         return eDATALOG_ERROR_NUMBER_OF_LOGS_EXCEEDED;
     
-    if (!(sDatalogger.sDatalogControl.ui8ActiveLoggers & (1 << (ui8ChNum - 1))))
+    if (!(psDatalog->sDatalogControl.ui8ActiveLoggers & (1 << (ui8ChNum - 1))))
         return eDATALOG_ERROR_CHANNEL_NOT_ACTIVE;
 
-    *pChannel = sDatalogger.sDatalogControl.sDatalogChannels[ui8ChNum - 1];
+    *pChannel = psDatalog->sDatalogControl.sDatalogChannels[ui8ChNum - 1];
 
     return eDATALOG_ERROR_NONE;
 }
 
 //===================================================================================
-tDATALOGGER_VERSION Datalogger_GetVersion(void)
+tDATALOGGER_VERSION DataloggerGetVersion(tDATALOGGER *psDatalog)
 {
-    return sDatalogger.sVersion;
+    return psDatalog->sVersion;
 }
 
 //===================================================================================
-tDATALOG_ERROR Datalogger_RegisterLog (uint32_t ui32ChID, uint8_t ui8LogNum, uint16_t ui16FreqDiv, uint32_t ui32RecLen, uint8_t *pui8Variable, uint8_t ui8ByteCount)
+tDATALOG_ERROR DataloggerRegisterLog (tDATALOGGER *psDatalog, uint32_t ui32ChID, uint8_t ui8LogNum, uint16_t ui16FreqDiv, uint32_t ui32RecLen, uint8_t *pui8Variable, uint8_t ui8ByteCount)
 {
     tDATALOG_CHANNEL        *pChannel; 
     tDATALOG_CHANNEL_MEMORY *pMemChannel;
@@ -201,11 +194,11 @@ tDATALOG_ERROR Datalogger_RegisterLog (uint32_t ui32ChID, uint8_t ui8LogNum, uin
     if (ui8LogNum > MAX_NUM_LOGS)
         return eDATALOG_ERROR_NUMBER_OF_LOGS_EXCEEDED;
     
-    pChannel = &sDatalogger.sDatalogControl.sDatalogChannels[ui8LogNum - 1];
-    pMemChannel = &sDatalogger.sMemoryHeader.sDatalogChannelsMemory[ui8LogNum - 1];
+    pChannel = &psDatalog->sDatalogControl.sDatalogChannels[ui8LogNum - 1];
+    pMemChannel = &psDatalog->sMemoryHeader.sDatalogChannelsMemory[ui8LogNum - 1];
 
-    if (!(sDatalogger.eDatalogState != eDLOGSTATE_INITIALIZED ||
-        sDatalogger.eDatalogState != eDLOGSTATE_UNINITIALIZED))
+    if (!(psDatalog->eDatalogState != eDLOGSTATE_INITIALIZED ||
+        psDatalog->eDatalogState != eDLOGSTATE_UNINITIALIZED))
         return eDATALOG_ERROR_WRONG_STATE;
 
     // Initialize parameter variables
@@ -216,26 +209,26 @@ tDATALOG_ERROR Datalogger_RegisterLog (uint32_t ui32ChID, uint8_t ui8LogNum, uin
     pChannel->ui32RecordLength                          = ui32RecLen;
 
     // Activate logger immediately
-    sDatalogger.sDatalogControl.ui8ActiveLoggers |= (1 << (ui8LogNum - 1));
+    psDatalog->sDatalogControl.ui8ActiveLoggers |= (1 << (ui8LogNum - 1));
 
     // New value is set -> Need to initialize the datalogger prior to next log run.
-    Datalogger_SetStateImmediate(eDLOGSTATE_UNINITIALIZED);
+    DataloggerSetStateImmediate(psDatalog, eDLOGSTATE_UNINITIALIZED);
 
     return eDATALOG_ERROR_NONE;
 }
 
 //===================================================================================
-tDATALOG_ERROR Datalogger_RemoveLog (uint8_t ui8LogNum)
+tDATALOG_ERROR DataloggerRemoveLog (tDATALOGGER *psDatalog, uint8_t ui8LogNum)
 {
     if (ui8LogNum > MAX_NUM_LOGS)
         return eDATALOG_ERROR_LOG_NUMBER_INVALID;
 
-    if (!(sDatalogger.sDatalogControl.ui8ActiveLoggers & (1 << (ui8LogNum - 1)) ))
+    if (!(psDatalog->sDatalogControl.ui8ActiveLoggers & (1 << (ui8LogNum - 1)) ))
         return eDATALOG_ERROR_CHANNEL_NOT_ACTIVE;
 
-    sDatalogger.sDatalogControl.ui8ActiveLoggers &= ~(1 << (ui8LogNum - 1));
+    psDatalog->sDatalogControl.ui8ActiveLoggers &= ~(1 << (ui8LogNum - 1));
 
-    Datalogger_SetStateImmediate(eDLOGSTATE_UNINITIALIZED);
+    DataloggerSetStateImmediate(psDatalog, eDLOGSTATE_UNINITIALIZED);
 
     // Reinitialize the logger
     return eDATALOG_ERROR_NONE;
@@ -253,17 +246,17 @@ tDATALOG_ERROR Datalogger_RemoveLog (uint8_t ui8LogNum)
  * @param   sDatalogConfig Desired configuration of the datalogger.
  * @returns Error indicator
  ***********************************************************************************/
-tDATALOG_ERROR Datalogger_InitLogger (bool bFreeMemory)
+tDATALOG_ERROR DataloggerInitLogger (tDATALOGGER *psDatalog, bool bFreeMemory)
 {
+    uint16_t    ui16TempSize;
     uint8_t     i = 0;
     uint8_t     ui8LogCount = 0;
     uint8_t     ui8LogIdx[MAX_NUM_LOGS] = {0};
-    uint16_t    ui16TempSize;
     uint32_t   ui32CurrentByteSize = 0;
-    tDATALOG_CHANNEL *pChannel;
+    tDATALOG_CHANNEL *pChannel = &psDatalog->sDatalogControl.sDatalogChannels[0];
 
     // Get out of this function if the state is not correct
-    if (sDatalogger.eDatalogState != eDLOGSTATE_UNINITIALIZED)
+    if (psDatalog->eDatalogState != eDLOGSTATE_UNINITIALIZED)
         return eDATALOG_ERROR_WRONG_STATE;
 
 
@@ -272,44 +265,44 @@ tDATALOG_ERROR Datalogger_InitLogger (bool bFreeMemory)
      *******************************************************************************/
 
     if (bFreeMemory)
-        _DatalogClearMemory();
+        _DataloggerClearMemory(psDatalog);
 
     // Preinitialize Datalog structure
     for(i = 0; i < MAX_NUM_LOGS; i++)
     {
-        if (!(sDatalogger.sDatalogControl.ui8ActiveLoggers & (1 << i)))
+        if (!(psDatalog->sDatalogControl.ui8ActiveLoggers & (1 << i)))
             continue;
 
         ui8LogIdx[ui8LogCount] = i;
 
         // Determine the offset of the current channel in external memory
-        if (sDatalogger.sDatalogControl.eOpMode == eOPMODE_RECMODEMEM || 
-            sDatalogger.sDatalogControl.eOpMode == eOPMODE_RECMODERAM)
+        if (psDatalog->sDatalogControl.eOpMode == eOPMODE_RECMODEMEM || 
+            psDatalog->sDatalogControl.eOpMode == eOPMODE_RECMODERAM)
         {
             if (ui8LogCount > 0)
             {
-                sDatalogger.sMemoryHeader.sDatalogChannelsMemory[i].ui32MemoryOffset = 
-                sDatalogger.sDatalogControl.sDatalogChannels[i].ui32MemoryOffset = 
-                    sDatalogger.sDatalogControl.sDatalogChannels[ui8LogIdx[ui8LogCount - 1]].ui32MemoryOffset +
-                    sDatalogger.sDatalogControl.sDatalogChannels[ui8LogIdx[ui8LogCount - 1]].ui32RecordLength *
-                    sDatalogger.sDatalogControl.sDatalogChannels[ui8LogIdx[ui8LogCount - 1]].ui8ByteCount;
+                psDatalog->sMemoryHeader.sDatalogChannelsMemory[i].ui32MemoryOffset = 
+                psDatalog->sDatalogControl.sDatalogChannels[i].ui32MemoryOffset = 
+                    psDatalog->sDatalogControl.sDatalogChannels[ui8LogIdx[ui8LogCount - 1]].ui32MemoryOffset +
+                    psDatalog->sDatalogControl.sDatalogChannels[ui8LogIdx[ui8LogCount - 1]].ui32RecordLength *
+                    psDatalog->sDatalogControl.sDatalogChannels[ui8LogIdx[ui8LogCount - 1]].ui8ByteCount;
             }
             else
             {
-                if (sDatalogger.sDatalogControl.eOpMode == eOPMODE_RECMODEMEM )
+                if (psDatalog->sDatalogControl.eOpMode == eOPMODE_RECMODEMEM )
                 {
-                    sDatalogger.sMemoryHeader.sDatalogChannelsMemory[i].ui32MemoryOffset = 
-                    sDatalogger.sDatalogControl.sDatalogChannels[i].ui32CurMemPos = MEMORY_HEADER_SIZE();
+                    psDatalog->sMemoryHeader.sDatalogChannelsMemory[i].ui32MemoryOffset = 
+                    psDatalog->sDatalogControl.sDatalogChannels[i].ui32CurMemPos = MEMORY_HEADER_SIZE();
                 }
                 else
                 {
-                    sDatalogger.sDatalogControl.sDatalogChannels[i].ui32MemoryOffset = 
-                    sDatalogger.sDatalogControl.sDatalogChannels[i].ui32CurMemPos = 0;
+                    psDatalog->sDatalogControl.sDatalogChannels[i].ui32MemoryOffset = 
+                    psDatalog->sDatalogControl.sDatalogChannels[i].ui32CurMemPos = 0;
                 }
             }
 
-            ui32CurrentByteSize +=  sDatalogger.sDatalogControl.sDatalogChannels[i].ui32RecordLength *
-                                    sDatalogger.sDatalogControl.sDatalogChannels[i].ui8ByteCount;
+            ui32CurrentByteSize +=  psDatalog->sDatalogControl.sDatalogChannels[i].ui32RecordLength *
+                                    psDatalog->sDatalogControl.sDatalogChannels[i].ui8ByteCount;
         }
         ui8LogCount++;
     }
@@ -318,14 +311,14 @@ tDATALOG_ERROR Datalogger_InitLogger (bool bFreeMemory)
     /********************************************************************************
      * RAM initialization routines
      *******************************************************************************/
-    if (sDatalogger.sDatalogControl.eOpMode == eOPMODE_RECMODEMEM)
+    if (psDatalog->sDatalogControl.eOpMode == eOPMODE_RECMODEMEM)
     {
         // temporary buffer is always set to max size
-        ui16TempSize = MAX_LOG_BUFFER_SIZE / (ui8LogCount << 1);
+        ui16TempSize = DATALOGGER_MAX_BUFFER_SIZE / (ui8LogCount << 1);
 
         for(i = 0; i < ui8LogCount; i++)
         {
-            pChannel = &sDatalogger.sDatalogControl.sDatalogChannels[ui8LogIdx[i]];
+            pChannel = &psDatalog->sDatalogControl.sDatalogChannels[ui8LogIdx[i]];
 
             pChannel->ui8RamBuf[0] = (uint8_t*)malloc((size_t)(ui16TempSize));
             pChannel->ui8RamBuf[1] = (uint8_t*)malloc((size_t)(ui16TempSize));
@@ -335,36 +328,36 @@ tDATALOG_ERROR Datalogger_InitLogger (bool bFreeMemory)
             
         }
         // Note: pChannel still pointing on the last active memory channel
-        sDatalogger.sMemoryHeader.ui32LastAddress = 
-            sDatalogger.sMemoryHeader.sDatalogChannelsMemory[ui8LogIdx[ui8LogCount - 1]].ui32MemoryOffset + 
+        psDatalog->sMemoryHeader.ui32LastAddress = 
+            psDatalog->sMemoryHeader.sDatalogChannelsMemory[ui8LogIdx[ui8LogCount - 1]].ui32MemoryOffset + 
             pChannel->ui32RecordLength - 1;
 
-        sDatalogger.sMemoryHeader.ui32TimeBase = sDatalogger.ui32TimeBase_Hz;
+        psDatalog->sMemoryHeader.ui32TimeBase = psDatalog->sNVPar.ui32EE_TimeBase_Hz;
     }
-    else if (sDatalogger.sDatalogControl.eOpMode == eOPMODE_RECMODERAM)
+    else if (psDatalog->sDatalogControl.eOpMode == eOPMODE_RECMODERAM)
     {
-        if (ui32CurrentByteSize > MAX_LOG_BUFFER_SIZE)
+        if (ui32CurrentByteSize > DATALOGGER_MAX_BUFFER_SIZE)
             return eDATALOG_ERROR_NOT_ENOUGH_MEMORY;
         
-        sDatalogger.sDatalogControl.pui8Data = (uint8_t*)calloc((size_t)ui32CurrentByteSize, 1);
+        psDatalog->sDatalogControl.pui8Data = (uint8_t*)calloc((size_t)ui32CurrentByteSize, 1);
     }
 
-    sDatalogger.sDatalogControl.ui32MemLen = ui32CurrentByteSize;
+    psDatalog->sDatalogControl.ui32MemLen = ui32CurrentByteSize;
     /********************************************************************************
      * State control
      *******************************************************************************/
     
     //TODO: LIVEMODE Ringbuffer initialization
 
-    if (sDatalogger.sDatalogControl.eOpMode != eOPMODE_RECMODEMEM)
+    if (psDatalog->sDatalogControl.eOpMode != eOPMODE_RECMODEMEM)
     {
-        Datalogger_SetStateImmediate(eDLOGSTATE_INITIALIZED);
-        // sDatalogger.eDatalogStatePending = eDLOGSTATE_INITIALIZED;
+        DataloggerSetStateImmediate(psDatalog, eDLOGSTATE_INITIALIZED);
+        // psDatalog->eDatalogStatePending = eDLOGSTATE_INITIALIZED;
     }
     else 
     {
-        Datalogger_SetStateImmediate(eDLOGSTATE_FORMAT_MEMORY);
-        // sDatalogger.eDatalogStatePending = eDLOGSTATE_FORMAT_MEMORY;
+        DataloggerSetStateImmediate(psDatalog, eDLOGSTATE_FORMAT_MEMORY);
+        // psDatalog->eDatalogStatePending = eDLOGSTATE_FORMAT_MEMORY;
     }
 
     return eDATALOG_ERROR_NONE;
@@ -416,18 +409,18 @@ tDATALOG_ERROR Datalogger_InitLogger (bool bFreeMemory)
  *
  * @returns Error indicator
  ***********************************************************************************/
-tDATALOG_ERROR Datalogger_Start (void)
+tDATALOG_ERROR DataloggerStart (tDATALOGGER *psDatalog)
 {
     uint8_t i = 0;
-    tDATALOG_CHANNEL* pChannel = sDatalogger.sDatalogControl.sDatalogChannels;
+    tDATALOG_CHANNEL* pChannel = psDatalog->sDatalogControl.sDatalogChannels;
 
-    if (sDatalogger.eDatalogState != eDLOGSTATE_INITIALIZED)
+    if (psDatalog->eDatalogState != eDLOGSTATE_INITIALIZED)
         return eDATALOG_ERROR_WRONG_STATE;
 
     // Resets all relevant variables
     while (i < MAX_NUM_LOGS)
     {
-        if (!(sDatalogger.sDatalogControl.ui8ActiveLoggers & (1 << i)))
+        if (!(psDatalog->sDatalogControl.ui8ActiveLoggers & (1 << i)))
         {
             i++;
             continue;
@@ -439,51 +432,57 @@ tDATALOG_ERROR Datalogger_Start (void)
         pChannel[i].ui16ValIdx = 0;
         pChannel[i].ui32CurrentCount = 0;
         
-        if(sDatalogger.sDatalogControl.eOpMode == eOPMODE_RECMODERAM)
+        if(psDatalog->sDatalogControl.eOpMode == eOPMODE_RECMODERAM)
         {
-            pChannel[i].ui32CurMemPos = sDatalogger.sDatalogControl.sDatalogChannels[i].ui32MemoryOffset;
-            // sDatalogger.sDatalogControl.ui32CurIdx = 0;
+            pChannel[i].ui32CurMemPos = psDatalog->sDatalogControl.sDatalogChannels[i].ui32MemoryOffset;
+            // psDatalog->sDatalogControl.ui32CurIdx = 0;
         }
-        else if(sDatalogger.sDatalogControl.eOpMode == eOPMODE_RECMODEMEM)
+        else if(psDatalog->sDatalogControl.eOpMode == eOPMODE_RECMODEMEM)
         {
-            pChannel[i].ui32CurMemPos = sDatalogger.sMemoryHeader.sDatalogChannelsMemory[i].ui32MemoryOffset;
+            pChannel[i].ui32CurMemPos = psDatalog->sMemoryHeader.sDatalogChannelsMemory[i].ui32MemoryOffset;
 
             // Reset the control variables of the serializer
-            sDatalogger.sDatalogSerializer.ui8ArbitrationCount = 0;
-            sDatalogger.sDatalogSerializer.ui8FillIdx = 0;
-            sDatalogger.sDatalogSerializer.ui8RetrieveFlags = 0;
-            sDatalogger.sDatalogSerializer.ui8RetrieveIdx = 0;
+            psDatalog->sDatalogSerializer.ui8ArbitrationCount = 0;
+            psDatalog->sDatalogSerializer.ui8FillIdx = 0;
+            psDatalog->sDatalogSerializer.ui8RetrieveFlags = 0;
+            psDatalog->sDatalogSerializer.ui8RetrieveIdx = 0;
         }
 
         i++;
     }
 
-    sDatalogger.sDatalogControl.ui8ChannelsRunning = 
-        sDatalogger.sDatalogControl.ui8ActiveLoggers;
+    psDatalog->sDatalogControl.ui8ChannelsRunning = 
+        psDatalog->sDatalogControl.ui8ActiveLoggers;
 
     // Switch the datalog on (directly, because this is time critical)
-    Datalogger_SetStateImmediate(eDLOGSTATE_RUNNING);
+    DataloggerSetStateImmediate(psDatalog, eDLOGSTATE_RUNNING);
+
+    if(psDatalog->sCallbacks.StartDataloggerCb != NULL)
+        psDatalog->sCallbacks.StartDataloggerCb();
 
     return eDATALOG_ERROR_NONE;
 }
 
 //===================================================================================
-// Function: Datalogger_Stop
+// Function: DataloggerStop
 //===================================================================================
 /********************************************************************************//**
  * \brief Stops the datalogger
  *
  * @returns Error indicator
  ***********************************************************************************/
-tDATALOG_STATE Datalogger_Stop (void)
+tDATALOG_STATE DataloggerStop (tDATALOGGER *psDatalog)
 {
-    if (sDatalogger.eDatalogState != eDLOGSTATE_RUNNING)
+    if (psDatalog->eDatalogState != eDLOGSTATE_RUNNING)
         return eDATALOG_ERROR_WRONG_STATE;
 
-    Datalogger_SetStateImmediate(eDLOGSTATE_ABORTING);
+    DataloggerSetStateImmediate(psDatalog, eDLOGSTATE_ABORTING);
 
     // Arbitration-count definiert auf 0 setzen
-    sDatalogger.sDatalogSerializer.ui8ArbitrationCount = 0;
+    psDatalog->sDatalogSerializer.ui8ArbitrationCount = 0;
+
+    if(psDatalog->sCallbacks.StopDataloggerCb != NULL)
+        psDatalog->sCallbacks.StopDataloggerCb();
 
     return eDATALOG_ERROR_NONE;
 }
@@ -493,16 +492,16 @@ tDATALOG_STATE Datalogger_Stop (void)
  *
  * This routine must get called regularly with a defined time base.
  ***********************************************************************************/
-void Datalogger_Service (void)
+void DataloggerService (tDATALOGGER *psDatalog)
 {
     uint8_t i;
     bool bAbort_flag = false;
     // bool tmp;
-    tDATALOG_CHANNEL *pChannel = sDatalogger.sDatalogControl.sDatalogChannels;
-    uint8_t ui8ChannelsRunningTemp = sDatalogger.sDatalogControl.ui8ChannelsRunning;
+    tDATALOG_CHANNEL *pChannel = psDatalog->sDatalogControl.sDatalogChannels;
+    uint8_t ui8ChannelsRunningTemp = psDatalog->sDatalogControl.ui8ChannelsRunning;
     // uint32_t ui32CurrentOffset = 0;
 
-    if (sDatalogger.eDatalogState != eDLOGSTATE_RUNNING)
+    if (psDatalog->eDatalogState != eDLOGSTATE_RUNNING)
         return;
 
     // Get all data
@@ -512,7 +511,7 @@ void Datalogger_Service (void)
             break;
 
         // Check if Channel is activated and running
-        if (!(sDatalogger.sDatalogControl.ui8ChannelsRunning & (1 << i)))
+        if (!(psDatalog->sDatalogControl.ui8ChannelsRunning & (1 << i)))
             continue;
 
         ui8ChannelsRunningTemp &= ~ (1 << i);
@@ -520,16 +519,16 @@ void Datalogger_Service (void)
         // Sample data
         if (!(--pChannel[i].ui16DivideCount))
         {
-            if (sDatalogger.sDatalogControl.eOpMode == eOPMODE_RECMODERAM) 
+            if (psDatalog->sDatalogControl.eOpMode == eOPMODE_RECMODERAM) 
             {
                 // Fill buffer in big endian format
                 for(uint8_t j = 0; j < pChannel[i].ui8ByteCount; j++)
                 {
-                    sDatalogger.sDatalogControl.pui8Data[pChannel[i].ui32MemoryOffset + (pChannel[i].ui32CurrentCount << (pChannel[i].ui8ByteCount >> 1)) + j] = 
+                    psDatalog->sDatalogControl.pui8Data[pChannel[i].ui32MemoryOffset + (pChannel[i].ui32CurrentCount << (pChannel[i].ui8ByteCount >> 1)) + j] = 
                         pChannel[i].pui8Variable[pChannel[i].ui8ByteCount - 1 - j];
                 }
             }
-            else if (sDatalogger.sDatalogControl.eOpMode == eOPMODE_RECMODEMEM)
+            else if (psDatalog->sDatalogControl.eOpMode == eOPMODE_RECMODEMEM)
             {
                 // Fill the appropirate arbitration buffer with data in big endian format
                 for(uint8_t j = 0; j < pChannel[i].ui8ByteCount; j++)
@@ -540,7 +539,7 @@ void Datalogger_Service (void)
 
                 // Set flag to empty the currently used buffer
                 if (++pChannel[i].ui16ValIdx == pChannel[i].ui16RetrieveThreshIdx)
-                    sDatalogger.sDatalogSerializer.ui8RetrieveFlags |= (1 << i);
+                    psDatalog->sDatalogSerializer.ui8RetrieveFlags |= (1 << i);
 
                 // Make sure that no buffer overflow can happen
                 if (pChannel[i].ui16ValIdx == pChannel[i].ui16RetrieveThreshIdx << 1)
@@ -549,17 +548,17 @@ void Datalogger_Service (void)
 
             // Switch off channel if it has reached its maximum count
             if (++pChannel[i].ui32CurrentCount == pChannel[i].ui32RecordLength)
-                sDatalogger.sDatalogControl.ui8ChannelsRunning &= ~(1 << i);
+                psDatalog->sDatalogControl.ui8ChannelsRunning &= ~(1 << i);
 
             pChannel[i].ui16DivideCount = pChannel[i].ui16Divider;
         }
     }
 
-    bAbort_flag = (sDatalogger.sDatalogControl.ui8ActiveLoggers & sDatalogger.sDatalogControl.ui8ChannelsRunning) == 0;
+    bAbort_flag = (psDatalog->sDatalogControl.ui8ActiveLoggers & psDatalog->sDatalogControl.ui8ChannelsRunning) == 0;
     // If all channels reached their record length, switch off datalogger
 
     if (bAbort_flag)
-        Datalogger_Stop();
+        DataloggerStop(psDatalog);
 }
 
 //===================================================================================
@@ -777,10 +776,10 @@ void Datalogger_Service (void)
  *
  * @returns Error indicator
  ***********************************************************************************/
-void Datalogger_Statemachine (void)
+void DataloggerStatemachine (tDATALOGGER *psDatalog)
 {
     //tROBLOG_ERROR eErrorIndicator = eROBLOG_ERROR_NONE;
-    // tDATALOG_STATE eNewState = sDatalogger.eDatalogState;
+    // tDATALOG_STATE eNewState = psDatalog->eDatalogState;
     /* uint16_t ui16Data_size; */
     /* uint16_t ui16End_index; */
     /* uint16_t ui16RAM_buffer_offset; */
@@ -788,9 +787,9 @@ void Datalogger_Statemachine (void)
     /* uint16_t ui16Max_bytes_temp; */
 
     // Reset the pending datalogger state to not transition to something else at the end.
-    sDatalogger.eDatalogStatePending = sDatalogger.eDatalogState;
+    psDatalog->eDatalogStatePending = psDatalog->eDatalogState;
 
-    switch (sDatalogger.eDatalogState)
+    switch (psDatalog->eDatalogState)
     {
     case eDLOGSTATE_UNINITIALIZED:
         break;
@@ -801,7 +800,7 @@ void Datalogger_Statemachine (void)
         // Wait for the memory write before changing the state angain
         // TODO: Functions not implemented yet
         /*if (checkMemoryInterfaceState() == eROBLOGIF_IDLE)
-            sDatalogger.eDatalogStatePending = eDLOGSTATE_RECMODEMEM_RUNNING;*/
+            psDatalog->eDatalogStatePending = eDLOGSTATE_RECMODEMEM_RUNNING;*/
 
         break;
 
@@ -893,9 +892,9 @@ void Datalogger_Statemachine (void)
         /*     if (++pMem_sched->ui8Arbitration_count >= sDatalog.sDatalog_internal.sHeader.ui8Active_loggers) */
         /*         sDatalog.eDatalog_state = eINT_MODE_READY_TO_START; */
         /* } */
-        if (sDatalogger.sDatalogControl.eOpMode == eOPMODE_RECMODERAM)
+        if (psDatalog->sDatalogControl.eOpMode == eOPMODE_RECMODERAM)
         {
-            sDatalogger.eDatalogStatePending = eDLOGSTATE_DATA_READY;
+            psDatalog->eDatalogStatePending = eDLOGSTATE_DATA_READY;
         }
         break;
 
@@ -993,7 +992,7 @@ void Datalogger_Statemachine (void)
     default:
         break;
     }
-    Datalogger_SetState();
+    DataloggerSetState(psDatalog);
     
 }
 
@@ -1005,26 +1004,26 @@ void Datalogger_Statemachine (void)
  *
  * Handles the state transitions from one state to another. 
  ***********************************************************************************/
-void Datalogger_SetState()
+void DataloggerSetState(tDATALOGGER *psDatalog)
 {
     bool successFlag = false;
 
     // State transition only if there has been flagged no error
-    if (sDatalogger.eDatalogStatePending != sDatalogger.eDatalogState)
+    if (psDatalog->eDatalogStatePending != psDatalog->eDatalogState)
     {
-        switch (sDatalogger.eDatalogState)
+        switch (psDatalog->eDatalogState)
         {
             case eDLOGSTATE_UNINITIALIZED:
 
                 // State transition resolver
-                switch(sDatalogger.eDatalogStatePending)
+                switch(psDatalog->eDatalogStatePending)
                 {
                     case eDLOGSTATE_FORMAT_MEMORY:
                         // Write the header into the memory
                         // TODO: Implement these functions
                         /*
                         if (checkMemoryInterfaceState() == eROBLOGIF_IDLE)
-                            successFlag = memoryWrite((uint8_t*)&sDatalogger.sMemoryHeader, 0, MEMORY_HEADER_SIZE());
+                            successFlag = memoryWrite((uint8_t*)&psDatalog->sMemoryHeader, 0, MEMORY_HEADER_SIZE());
                         */
                         break;
 
@@ -1048,7 +1047,7 @@ void Datalogger_SetState()
 
         // Change state if the operation was successfull
         if (successFlag)
-            sDatalogger.eDatalogState = sDatalogger.eDatalogStatePending;
+            psDatalog->eDatalogState = psDatalog->eDatalogStatePending;
     }
 }
 
@@ -1059,7 +1058,7 @@ void Datalogger_SetState()
  * \brief Set a new datalogger state immediately without handling any state
  * transitions. 
  ***********************************************************************************/
-void Datalogger_SetStateImmediate (tDATALOG_STATE eNewState)
+void DataloggerSetStateImmediate (tDATALOGGER *psDatalog, tDATALOG_STATE eNewState)
 {
-    sDatalogger.eDatalogState = eNewState;
+    psDatalog->eDatalogState = eNewState;
 }

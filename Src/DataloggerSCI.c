@@ -9,7 +9,6 @@
  *      - 2022-04-27 - File creation.
  *                     
  ***********************************************************************************/
-#ifdef SCI
 /************************************************************************************
  * Includes
  ***********************************************************************************/
@@ -17,18 +16,21 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include "DataloggerSCI.h"
-#include "DataloggerConfig.h"
+#include "DataloggerCfg.h"
 #include "Datalogger.h"
 #include "SCI.h"
+
+#ifdef SCI
 /************************************************************************************
  * Defines
  ***********************************************************************************/
-#define DATALOGGER_SCI_ERROR(e) (e + DATALOGGER_ERROR_OFFSET)
+#define DATALOGGER_SCI_ERROR(e) (e + DATALOGGER_SCI_ERROR_OFFSET)
 
 /************************************************************************************
  * Globals
  ***********************************************************************************/
 extern const uint8_t ui8_byteLength[];
+extern tDATALOGGER sDatalogger[];
 uint32_t ui32ReturnValBuffer[SIZE_OF_RETURN_VAL_BUFFER];
 
 /************************************************************************************
@@ -36,7 +38,9 @@ uint32_t ui32ReturnValBuffer[SIZE_OF_RETURN_VAL_BUFFER];
  ***********************************************************************************/
 COMMAND_CB_STATUS GetDataloggerVersion (uint32_t* ui32ValArray, uint8_t ui8ValArrayLen, PROCESS_INFO *pInfo)
 {
-    tDATALOGGER_VERSION sVer = Datalogger_GetVersion();
+    uint8_t ui8Index = (uint8_t)ui32ValArray[0];
+
+    tDATALOGGER_VERSION sVer = DataloggerGetVersion(&sDatalogger[ui8Index]);
 
     pInfo->ui32_datLen = 3;
     ui32ReturnValBuffer[0] = sVer.ui8VersionMajor;
@@ -51,10 +55,11 @@ COMMAND_CB_STATUS GetDataloggerVersion (uint32_t* ui32ValArray, uint8_t ui8ValAr
 COMMAND_CB_STATUS RegisterLogFromVarStruct (uint32_t* ui32ValArray, uint8_t ui8ValArrayLen, PROCESS_INFO *pInfo)
 {
     // Take over the arguments
-    uint16_t ui16VarNum = (uint16_t)ui32ValArray[0];
-    uint8_t ui8ChNum = (uint8_t)ui32ValArray[1];
-    uint16_t ui16FreqDiv = (uint8_t)ui32ValArray[2];
-    uint32_t ui32RecLen = ui32ValArray[3];
+    uint8_t ui8Index = (uint8_t)ui32ValArray[0];
+    uint16_t ui16VarNum = (uint16_t)ui32ValArray[1];
+    uint8_t ui8ChNum = (uint8_t)ui32ValArray[2];
+    uint16_t ui16FreqDiv = (uint8_t)ui32ValArray[3];
+    uint32_t ui32RecLen = ui32ValArray[4];
     VAR *pVar = NULL;
     tDATALOG_ERROR eDlogError = eDATALOG_ERROR_NONE;
 
@@ -62,7 +67,7 @@ COMMAND_CB_STATUS RegisterLogFromVarStruct (uint32_t* ui32ValArray, uint8_t ui8V
     if (SCI_GetVarFromStruct((int16_t)ui16VarNum, &pVar))
     {
         // Register the log by using the channel number as identifier
-        eDlogError = Datalogger_RegisterLog(ui8ChNum, ui8ChNum, ui16FreqDiv, ui32RecLen, (uint8_t*)pVar->val, ui8_byteLength[pVar->datatype]);
+        eDlogError = DataloggerRegisterLog(&sDatalogger[ui8Index], ui8ChNum, ui8ChNum, ui16FreqDiv, ui32RecLen, (uint8_t*)pVar->val, ui8_byteLength[pVar->datatype]);
     }
     else
         return eCOMMAND_STATUS_ERROR;
@@ -79,10 +84,12 @@ COMMAND_CB_STATUS RegisterLogFromVarStruct (uint32_t* ui32ValArray, uint8_t ui8V
 //=============================================================================
 COMMAND_CB_STATUS InitializeDatalogger (uint32_t* ui32ValArray, uint8_t ui8ValArrayLen, PROCESS_INFO *pInfo)
 {
+    uint8_t ui8Index = (uint8_t)ui32ValArray[0];
+
     tDATALOG_ERROR eDlogError = eDATALOG_ERROR_NONE;
 
 
-    eDlogError = Datalogger_InitLogger(true);
+    eDlogError = DataloggerInitLogger(&sDatalogger[ui8Index], true);
     
     if (eDlogError == eDATALOG_ERROR_NONE)
         return eCOMMAND_STATUS_SUCCESS;
@@ -96,9 +103,11 @@ COMMAND_CB_STATUS InitializeDatalogger (uint32_t* ui32ValArray, uint8_t ui8ValAr
 //=============================================================================
 COMMAND_CB_STATUS StartDatalogger (uint32_t* ui32ValArray, uint8_t ui8ValArrayLen, PROCESS_INFO *pInfo)
 {
+    uint8_t ui8Index = (uint8_t)ui32ValArray[0];
+
     tDATALOG_ERROR eDlogError = eDATALOG_ERROR_NONE;
 
-    eDlogError = Datalogger_Start();
+    eDlogError = DataloggerStart(&sDatalogger[ui8Index]);
     
     if (eDlogError == eDATALOG_ERROR_NONE)
         return eCOMMAND_STATUS_SUCCESS;
@@ -112,9 +121,11 @@ COMMAND_CB_STATUS StartDatalogger (uint32_t* ui32ValArray, uint8_t ui8ValArrayLe
 //=============================================================================
 COMMAND_CB_STATUS StopDatalogger (uint32_t* ui32ValArray, uint8_t ui8ValArrayLen, PROCESS_INFO *pInfo)
 {
+    uint8_t ui8Index = (uint8_t)ui32ValArray[0];
+
     tDATALOG_ERROR eDlogError = eDATALOG_ERROR_NONE;
 
-    eDlogError = Datalogger_Stop();
+    eDlogError = DataloggerStop(&sDatalogger[ui8Index]);
     
     if (eDlogError == eDATALOG_ERROR_NONE)
         return eCOMMAND_STATUS_SUCCESS;
@@ -128,11 +139,12 @@ COMMAND_CB_STATUS StopDatalogger (uint32_t* ui32ValArray, uint8_t ui8ValArrayLen
 //=============================================================================
 COMMAND_CB_STATUS GetLogData (uint32_t* ui32ValArray, uint8_t ui8ValArrayLen, PROCESS_INFO *pInfo)
 {
+    uint8_t ui8Index = (uint8_t)ui32ValArray[0];
     tDATALOG_ERROR eDlogError = eDATALOG_ERROR_NONE;
     uint8_t *pui8Data = NULL;
     uint32_t ui32MemLen = 0;
 
-    eDlogError = Datalogger_GetDataPtr(&pui8Data, &ui32MemLen);
+    eDlogError = DataloggerGetDataPtr(&sDatalogger[ui8Index], &pui8Data, &ui32MemLen);
     
     if (eDlogError == eDATALOG_ERROR_NONE)
     {
@@ -153,10 +165,11 @@ COMMAND_CB_STATUS GetChannelInfo (uint32_t* ui32ValArray, uint8_t ui8ValArrayLen
     tDATALOG_ERROR eDlogError = eDATALOG_ERROR_NONE;
     tDATALOG_CHANNEL sChInfo;
     // Take over the arguments
-    uint8_t ui8ChNum = (uint8_t)ui32ValArray[0];
+    uint8_t ui8Index = (uint8_t)ui32ValArray[0];
+    uint8_t ui8ChNum = (uint8_t)ui32ValArray[1];
     // uint8_t ui8ReturnSize = 0;
 
-    eDlogError = Datalogger_GetChannelInfo(&sChInfo, ui8ChNum);
+    eDlogError = DataloggerGetChannelInfo(&sDatalogger[ui8Index], &sChInfo, ui8ChNum);
     
     if (eDlogError == eDATALOG_ERROR_NONE)
     {
@@ -180,7 +193,9 @@ COMMAND_CB_STATUS GetChannelInfo (uint32_t* ui32ValArray, uint8_t ui8ValArrayLen
 //=============================================================================
 COMMAND_CB_STATUS ResetDatalogger (uint32_t* ui32ValArray, uint8_t ui8ValArrayLen, PROCESS_INFO *pInfo)
 {
-    tDATALOG_ERROR eDlogError = Datalogger_Reset();
+    uint8_t ui8Index = (uint8_t)ui32ValArray[0];
+
+    tDATALOG_ERROR eDlogError = DataloggerReset(&sDatalogger[ui8Index]);
     
     if (eDlogError == eDATALOG_ERROR_NONE)
     {
@@ -196,9 +211,10 @@ COMMAND_CB_STATUS ResetDatalogger (uint32_t* ui32ValArray, uint8_t ui8ValArrayLe
 //=============================================================================
 COMMAND_CB_STATUS RemoveLog (uint32_t* ui32ValArray, uint8_t ui8ValArrayLen, PROCESS_INFO *pInfo)
 {
-    uint8_t ui8ChNum = (uint8_t)ui32ValArray[0];
+    uint8_t ui8Index = (uint8_t)ui32ValArray[0];
+    uint8_t ui8ChNum = (uint8_t)ui32ValArray[1];
 
-    tDATALOG_ERROR eDlogError = Datalogger_RemoveLog(ui8ChNum);
+    tDATALOG_ERROR eDlogError = DataloggerRemoveLog(&sDatalogger[ui8Index], ui8ChNum);
     
     if (eDlogError == eDATALOG_ERROR_NONE)
     {
@@ -214,9 +230,10 @@ COMMAND_CB_STATUS RemoveLog (uint32_t* ui32ValArray, uint8_t ui8ValArrayLen, PRO
 //=============================================================================
 COMMAND_CB_STATUS SetOpMode (uint32_t* ui32ValArray, uint8_t ui8ValArrayLen, PROCESS_INFO *pInfo)
 {
-    uint32_t ui32OpMode = ui32ValArray[0];
+    uint8_t ui8Index = (uint8_t)ui32ValArray[0];
+    uint32_t ui32OpMode = ui32ValArray[1];
 
-    tDATALOG_ERROR eDlogError = Datalogger_SetOpMode(ui32OpMode);
+    tDATALOG_ERROR eDlogError = DataloggerSetOpMode(&sDatalogger[ui8Index], ui32OpMode);
     
     if (eDlogError == eDATALOG_ERROR_NONE)
     {

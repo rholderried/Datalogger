@@ -89,6 +89,15 @@ typedef struct
  * Datalog control data
  ***********************************************************************************/
 
+/** @brief Datalogger callbacks */
+typedef struct
+{
+    void(*StartDataloggerCb)(void);
+    void(*StopDataloggerCb)(void);
+}tDATALOGGER_CALLBACKS;
+
+#define tDATALOGGER_CALLBACKS_DEFAULTS {NULL, NULL}
+
 /** @brief Datalog channel data structure */
 typedef struct
 {
@@ -206,8 +215,11 @@ typedef struct
 typedef struct
 {
     tDATALOGGER_VERSION             sVersion;
-    // Datalog-Parameter
-    uint32_t                        ui32TimeBase_Hz;
+    // Datalog-Parameter (Non-Volatile)
+    struct
+    {
+        uint32_t                    ui32EE_TimeBase_Hz;
+    }sNVPar;
 
     tDATALOG_STATE                  eDatalogState;
     tDATALOG_STATE                  eDatalogStatePending;
@@ -215,17 +227,19 @@ typedef struct
     tDATALOG_MEMORY_HEADER          sMemoryHeader;
     tDATALOG_RECMODEMEM_SERIALIZER  sDatalogSerializer;
     tDATALOG_CONTROL                sDatalogControl;
+    tDATALOGGER_CALLBACKS           sCallbacks;
 }tDATALOGGER;
 
 #define tDATALOGGER_DEFAULTS {\
     {DATALOGGER_VERSION_MAJOR, DATALOGGER_VERSION_MINOR, DATALOGGER_REVISION},\
-    0,\
+    {0},\
     eDLOGSTATE_UNINITIALIZED, \
     eDLOGSTATE_UNINITIALIZED, \
     tDATALOG_LIVEMODE_TIMER_DEFAULTS, \
     tDATALOG_MEMORY_HEADER_DEFAULTS, \
     tDATALOG_RECMODEMEM_SERIALIIZER_DEFAULTS,\
-    tDATALOG_CONTROL_DEFAULTS}
+    tDATALOG_CONTROL_DEFAULTS,\
+    tDATALOGGER_CALLBACKS_DEFAULTS}
 // #define tDATALOGGER_DEFAULTS {0}
 
 /************************************************************************************
@@ -234,41 +248,41 @@ typedef struct
 /********************************************************************************//**
  * \brief Initializes the datalogger structure
  ***********************************************************************************/
-void Datalogger_Init(uint32_t ui32Frequency_Hz);
+void DataloggerInit(tDATALOGGER *psDatalog, tDATALOGGER_CALLBACKS sCallbacks);
 
 /********************************************************************************//**
  * \brief Resets the datalogger structure
  ***********************************************************************************/
-tDATALOG_ERROR Datalogger_Reset(void);
+tDATALOG_ERROR DataloggerReset(tDATALOGGER *psDatalog);
 
 /********************************************************************************//**
  * \brief API function to free formerly allocated memory
  ***********************************************************************************/
-void Datalogger_ClearMemory(void);
+void DataloggerClearMemory(tDATALOGGER *psDatalog);
 
 /********************************************************************************//**
  * \brief Returns a pointer to the usually hidden data structure
  ***********************************************************************************/
 #ifdef UNITTEST
-tDATALOGGER* Datalogger_GetData(void);
+tDATALOGGER* Datalogger_GetData(tDATALOGGER *psDatalog);
 #endif
 
 /********************************************************************************//**
  * \brief Return the current state of the 
  ***********************************************************************************/
-tDATALOG_STATE Datalogger_GetCurrentState(void);
+tDATALOG_STATE DataloggerGetCurrentState(tDATALOGGER *psDatalog);
 
 /********************************************************************************//**
  * \brief Return the current operation mode of the datalogger
  ***********************************************************************************/
-tDATALOG_OPMODES Datalogger_GetCurrentOpMode(void);
+tDATALOG_OPMODES DataloggerGetCurrentOpMode(tDATALOGGER *psDatalog);
 
 /********************************************************************************//**
  * \brief Sets the Datalogger to a new operation mode.
  * 
  * @param eNewOpMode    New operation mode to be set.
  ***********************************************************************************/
-tDATALOG_ERROR Datalogger_SetOpMode(tDATALOG_OPMODES eNewOpMode);
+tDATALOG_ERROR DataloggerSetOpMode(tDATALOGGER *psDatalog, tDATALOG_OPMODES eNewOpMode);
 
 /********************************************************************************//**
  * \brief Returns the current operation mode of the datalogger
@@ -277,7 +291,7 @@ tDATALOG_ERROR Datalogger_SetOpMode(tDATALOG_OPMODES eNewOpMode);
  * @param ui32Len   Pointer to the variable that shall hold the length of the log 
  *                  data buffer.
  ***********************************************************************************/
-tDATALOG_ERROR Datalogger_GetDataPtr(uint8_t** pui8Data, uint32_t *ui32Len);
+tDATALOG_ERROR DataloggerGetDataPtr(tDATALOGGER *psDatalog, uint8_t** pui8Data, uint32_t *ui32Len);
 
 /********************************************************************************//**
  * \brief Returns information of the 
@@ -285,12 +299,12 @@ tDATALOG_ERROR Datalogger_GetDataPtr(uint8_t** pui8Data, uint32_t *ui32Len);
  * @param pChannel  Pointer to the data target.
  * @param ui8ChNum  Channel number to request.
  ***********************************************************************************/
-tDATALOG_ERROR Datalogger_GetChannelInfo(tDATALOG_CHANNEL *pChannel, uint8_t ui8ChNum);
+tDATALOG_ERROR DataloggerGetChannelInfo(tDATALOGGER *psDatalog, tDATALOG_CHANNEL *pChannel, uint8_t ui8ChNum);
 
 /********************************************************************************//**
  * \brief Returns the datalogger version structure
  ***********************************************************************************/
-tDATALOGGER_VERSION Datalogger_GetVersion(void);
+tDATALOGGER_VERSION DataloggerGetVersion(tDATALOGGER *psDatalog);
 
 
 /********************************************************************************//**
@@ -306,17 +320,17 @@ tDATALOGGER_VERSION Datalogger_GetVersion(void);
  * 
  * @returns Error indicator
  ***********************************************************************************/
-tDATALOG_ERROR Datalogger_RegisterLog (uint32_t ui32ChID, uint8_t ui8LogNum, uint16_t ui16FreqDiv, uint32_t ui32RecLen, uint8_t *pui8Variable, uint8_t ui8ByteCount);
-tDATALOG_ERROR Datalogger_RemoveLog (uint8_t ui8LogNum);
-tDATALOG_ERROR Datalogger_InitLogger (bool bFreeMemory);
-tDATALOG_ERROR Datalogger_Start (void);
-tDATALOG_STATE Datalogger_Stop (void);
+tDATALOG_ERROR DataloggerRegisterLog (tDATALOGGER *psDatalog, uint32_t ui32ChID, uint8_t ui8LogNum, uint16_t ui16FreqDiv, uint32_t ui32RecLen, uint8_t *pui8Variable, uint8_t ui8ByteCount);
+tDATALOG_ERROR DataloggerRemoveLog (tDATALOGGER *psDatalog, uint8_t ui8LogNum);
+tDATALOG_ERROR DataloggerInitLogger (tDATALOGGER *psDatalog, bool bFreeMemory);
+tDATALOG_ERROR DataloggerStart (tDATALOGGER *psDatalog);
+tDATALOG_STATE DataloggerStop (tDATALOGGER *psDatalog);
 // Datalog service methods
-void Datalogger_Service (void);
-void Datalogger_Statemachine (void);
+void DataloggerService (tDATALOGGER *psDatalog);
+void DataloggerStatemachine (tDATALOGGER *psDatalog);
 // Internal functions
-void Datalogger_SetState (void);
-void Datalogger_SetStateImmediate (tDATALOG_STATE eNewState);
+void DataloggerSetState (tDATALOGGER *psDatalog);
+void DataloggerSetStateImmediate (tDATALOGGER *psDatalog, tDATALOG_STATE eNewState);
 
 
 /* extern bool LiveModeDatalogStart (uint8_t ui8Var_count, uint16_t* pui16Var_nr, uint16_t pui16Divider); */
