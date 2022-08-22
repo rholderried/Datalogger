@@ -57,8 +57,8 @@ COMMAND_CB_STATUS RegisterLogFromVarStruct (uint32_t* ui32ValArray, uint8_t ui8V
     VAR pVar;
     // Take over the arguments
     uint8_t ui8Index = (uint8_t)ui32ValArray[0];
-    uint16_t ui16VarNum = (uint16_t)ui32ValArray[1];
-    uint8_t ui8ChNum = (uint8_t)ui32ValArray[2];
+    uint8_t ui8ChNum = (uint8_t)ui32ValArray[1];
+    uint16_t ui16VarNum = (uint16_t)ui32ValArray[2];
     uint16_t ui16FreqDiv = (uint8_t)ui32ValArray[3];
     uint32_t ui32RecLen = ui32ValArray[4];
     tDATALOG_ERROR eDlogError = eDATALOG_ERROR_NONE;
