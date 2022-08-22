@@ -54,20 +54,20 @@ COMMAND_CB_STATUS GetDataloggerVersion (uint32_t* ui32ValArray, uint8_t ui8ValAr
 //=============================================================================
 COMMAND_CB_STATUS RegisterLogFromVarStruct (uint32_t* ui32ValArray, uint8_t ui8ValArrayLen, PROCESS_INFO *pInfo)
 {
+    VAR pVar;
     // Take over the arguments
     uint8_t ui8Index = (uint8_t)ui32ValArray[0];
     uint16_t ui16VarNum = (uint16_t)ui32ValArray[1];
     uint8_t ui8ChNum = (uint8_t)ui32ValArray[2];
     uint16_t ui16FreqDiv = (uint8_t)ui32ValArray[3];
     uint32_t ui32RecLen = ui32ValArray[4];
-    VAR *pVar = NULL;
     tDATALOG_ERROR eDlogError = eDATALOG_ERROR_NONE;
 
 
-    if (SCI_GetVarFromStruct((int16_t)ui16VarNum, &pVar))
+    if (SCI_GetVarFromStruct((int16_t)ui16VarNum, &pVar) == eSCI_ERROR_NONE)
     {
         // Register the log by using the channel number as identifier
-        eDlogError = DataloggerRegisterLog(&sDatalogger[ui8Index], ui8ChNum, ui8ChNum, ui16FreqDiv, ui32RecLen, (uint8_t*)pVar->val, ui8_byteLength[pVar->datatype]);
+        eDlogError = DataloggerRegisterLog(&sDatalogger[ui8Index], ui8ChNum, ui8ChNum, ui16FreqDiv, ui32RecLen, (uint8_t*)pVar.val, ui8_byteLength[pVar.datatype]);
     }
     else
         return eCOMMAND_STATUS_ERROR;

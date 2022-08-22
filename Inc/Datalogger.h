@@ -70,8 +70,9 @@ typedef enum
     eDATALOG_ERROR_NUMBER_OF_LOGS_EXCEEDED  = 4,
     eDATALOG_ERROR_CHANNEL_NOT_ACTIVE       = 5,
     eDATALOG_ERROR_NOT_ENOUGH_MEMORY        = 6,
-    eDATALOG_ERROR_NO_DATA                  = 7,
-    eDATALOG_ERROR_NOT_IMPLEMENTED          = 8
+    eDATALOG_ERROR_MEMORY_ALLOCATION_FAILED = 7,
+    eDATALOG_ERROR_NO_DATA                  = 8,
+    eDATALOG_ERROR_NOT_IMPLEMENTED          = 9
 }tDATALOG_ERROR;
 
 /************************************************************************************
@@ -128,13 +129,14 @@ typedef struct
 {
     tDATALOG_OPMODES    eOpMode;
     uint8_t             ui8ActiveLoggers;
+    uint8_t             ui8MemoryAcquired;
     uint8_t             ui8ChannelsRunning;
     uint32_t            ui32MemLen;
     uint8_t             *pui8Data;
     tDATALOG_CHANNEL    sDatalogChannels[MAX_NUM_LOGS];
 }tDATALOG_CONTROL;
 
-#define tDATALOG_CONTROL_DEFAULTS {eOPMODE_RECMODERAM, 0, 0, 0, NULL, {tDATALOG_CHANNEL_DEFAULTS}}
+#define tDATALOG_CONTROL_DEFAULTS {eOPMODE_RECMODERAM, 0, 0, 0, 0, NULL, {tDATALOG_CHANNEL_DEFAULTS}}
 // #define tDATALOG_CONTROL_DEFAULTS {0}
 
 /************************************************************************************

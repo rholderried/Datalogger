@@ -72,25 +72,30 @@ tDATALOGGER* DataloggerGetData(tDATALOGGER *psDatalog,)
 //===================================================================================
 void _DataloggerClearMemory (tDATALOGGER *psDatalog)
 {
-    // If memory has been already allocated, free these memory portions
-    for (uint8_t i = 0; i < MAX_NUM_LOGS; i++)
+    if (psDatalog->sDatalogControl.eOpMode == eOPMODE_RECMODERAM && psDatalog->sDatalogControl.ui8MemoryAcquired)
     {
-        if (!psDatalog->sDatalogControl.ui8ActiveLoggers)
-            break;
+        free(psDatalog->sDatalogControl.pui8Data);
+        psDatalog->sDatalogControl.ui8MemoryAcquired = 0;
+    }
 
-        if (psDatalog->sDatalogControl.ui8ActiveLoggers & (1 << i))
+    else if (psDatalog->sDatalogControl.eOpMode == eOPMODE_RECMODEMEM)
+    {
+        // If memory has been already allocated, free these memory portions
+        for (uint8_t i = 0; i < MAX_NUM_LOGS; i++)
         {
-            if (psDatalog->sDatalogControl.eOpMode == eOPMODE_RECMODERAM)
-                free(psDatalog->sDatalogControl.pui8Data);
-            else if(psDatalog->sDatalogControl.eOpMode == eOPMODE_RECMODEMEM)
+            if (!psDatalog->sDatalogControl.ui8MemoryAcquired)
+                break;
+
+            if (psDatalog->sDatalogControl.ui8MemoryAcquired & (1 << i))
             {
                 free(psDatalog->sDatalogControl.sDatalogChannels[i].ui8RamBuf[0]);
                 free(psDatalog->sDatalogControl.sDatalogChannels[i].ui8RamBuf[1]);
+                psDatalog->sDatalogControl.ui8MemoryAcquired &= ~(1 << i);
             }
-            psDatalog->sDatalogControl.ui8ActiveLoggers &= ~(1 << i);
-        }
-    i++;
-    }   
+            
+        i++;
+        }   
+    }
 }
 
 //===================================================================================
@@ -325,6 +330,9 @@ tDATALOG_ERROR DataloggerInitLogger (tDATALOGGER *psDatalog, bool bFreeMemory)
 
             // Retrieve data whenn the index exceeds half of the memory size
             pChannel->ui16RetrieveThreshIdx = ui16TempSize >> 2;
+
+            // Flag that the memory of this channel has been acquired
+            psDatalog->sDatalogControl.ui8MemoryAcquired |= (1 << ui8LogIdx[i]);
             
         }
         // Note: pChannel still pointing on the last active memory channel
@@ -340,6 +348,10 @@ tDATALOG_ERROR DataloggerInitLogger (tDATALOGGER *psDatalog, bool bFreeMemory)
             return eDATALOG_ERROR_NOT_ENOUGH_MEMORY;
         
         psDatalog->sDatalogControl.pui8Data = (uint8_t*)calloc((size_t)ui32CurrentByteSize, 1);
+        psDatalog->sDatalogControl.ui8MemoryAcquired = 1;
+
+        if (psDatalog->sDatalogControl.pui8Data == NULL)
+            return eDATALOG_ERROR_MEMORY_ALLOCATION_FAILED;
     }
 
     psDatalog->sDatalogControl.ui32MemLen = ui32CurrentByteSize;
@@ -1009,46 +1021,61 @@ void DataloggerSetState(tDATALOGGER *psDatalog)
     bool successFlag = false;
 
     // State transition only if there has been flagged no error
-    if (psDatalog->eDatalogStatePending != psDatalog->eDatalogState)
+    if (psDatalog->eDatalogStatePending == psDatalog->eDatalogState)
     {
-        switch (psDatalog->eDatalogState)
-        {
-            case eDLOGSTATE_UNINITIALIZED:
-
-                // State transition resolver
-                switch(psDatalog->eDatalogStatePending)
-                {
-                    case eDLOGSTATE_FORMAT_MEMORY:
-                        // Write the header into the memory
-                        // TODO: Implement these functions
-                        /*
-                        if (checkMemoryInterfaceState() == eROBLOGIF_IDLE)
-                            successFlag = memoryWrite((uint8_t*)&psDatalog->sMemoryHeader, 0, MEMORY_HEADER_SIZE());
-                        */
-                        break;
-
-                    case eDLOGSTATE_INITIALIZED:
-                        // No action required, just transition
-                        successFlag = true;
-                        break;
-
-                    // Desired state transition is illegal
-                    default:
-                        break;
-                }
-                break;
-
-            case eDLOGSTATE_INITIALIZED:
-                break;
-
-            default:
-                break;
-        }
-
-        // Change state if the operation was successfull
-        if (successFlag)
-            psDatalog->eDatalogState = psDatalog->eDatalogStatePending;
+        return;
     }
+    
+    switch (psDatalog->eDatalogState)
+    {
+        case eDLOGSTATE_UNINITIALIZED:
+
+            // State transition resolver
+            switch(psDatalog->eDatalogStatePending)
+            {
+                case eDLOGSTATE_FORMAT_MEMORY:
+                    // Write the header into the memory
+                    // TODO: Implement these functions
+                    /*
+                    if (checkMemoryInterfaceState() == eROBLOGIF_IDLE)
+                        successFlag = memoryWrite((uint8_t*)&psDatalog->sMemoryHeader, 0, MEMORY_HEADER_SIZE());
+                    */
+                    break;
+
+                case eDLOGSTATE_INITIALIZED:
+                    // No action required, just transition
+                    successFlag = true;
+                    break;
+
+                // Desired state transition is illegal
+                default:
+                    break;
+            }
+            break;
+
+        case eDLOGSTATE_INITIALIZED:
+            break;
+
+        case eDLOGSTATE_ABORTING:
+
+            switch(psDatalog->eDatalogStatePending)
+            {
+                case eDLOGSTATE_DATA_READY:
+                    successFlag = true;
+                    break;
+                
+                default:
+                    break;
+            }
+            break;
+
+        default:
+            break;
+    }
+
+    // Change state if the operation was successfull
+    if (successFlag)
+        psDatalog->eDatalogState = psDatalog->eDatalogStatePending;
 }
 
 //===================================================================================
