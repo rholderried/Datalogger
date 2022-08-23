@@ -52,6 +52,9 @@ tDATALOG_ERROR DataloggerReset(tDATALOGGER *psDatalog)
             break;
     }
 
+    // Free all acquired memory
+    _DataloggerClearMemory(psDatalog);
+
     // Preserve the parameters and the callbacks
     sTemp.sNVPar = psDatalog->sNVPar;
     sTemp.sCallbacks = psDatalog->sCallbacks;

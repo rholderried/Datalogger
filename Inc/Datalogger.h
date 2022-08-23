@@ -333,6 +333,7 @@ void DataloggerStatemachine (tDATALOGGER *psDatalog);
 // Internal functions
 void DataloggerSetState (tDATALOGGER *psDatalog);
 void DataloggerSetStateImmediate (tDATALOGGER *psDatalog, tDATALOG_STATE eNewState);
+void _DataloggerClearMemory(tDATALOGGER *psDatalog);
 
 
 /* extern bool LiveModeDatalogStart (uint8_t ui8Var_count, uint16_t* pui16Var_nr, uint16_t pui16Divider); */
